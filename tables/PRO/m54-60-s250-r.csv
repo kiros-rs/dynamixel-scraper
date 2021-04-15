@@ -1,0 +1,57 @@
+Address, Size(Byte), Data Name, Access, InitialValue, Range, Unit
+0, 2, Model Number, R, 46352, -, -
+2, 4, Model Information, R, -, -, -
+6, 1, Firmware Version, R, -, -, -
+7, 1, ID, RW, 1, 0 ~ 252, -
+8, 1, Baud Rate, RW, 1, 0 ~ 13, -
+9, 1, Return Delay Time, RW, 250, 0 ~ 255, -
+11, 1, Operating Mode, RW, 3, 0 1 3 4, -
+13, 4, Homing Offset, RW, 0, -2147483648 ~ 2147483647, 1 [pulse]
+17, 4, Moving Threshold, RW, 50, 0 ~ 2147483647, 0.00397746 [rev/min]
+21, 1, Temperature Limit, RW, 80, 0 ~ 100, 1 [°C]
+22, 2, Max Voltage Limit, RW, 400, 0 ~ 400, 0.1 [V]
+24, 2, Min Voltage Limit, RW, 150, 0 ~ 400, 0.1 [V]
+26, 4, Acceleration Limit, RW, -, 0 ~ 2147483647, 58000 [rev/min2]
+30, 2, Torque Limit, RW, 180, 0 ~ 540, 16.11328 [mA]
+32, 4, Velocity Limit, RW, 8000, 0 ~ 2147483647, 0.00397746 [rev/min]
+36, 4, Max Position Limit, RW, 125708, -2147483648 ~ 2147483647, 1 [pulse]
+40, 4, Min Position Limit, RW, -125708, -2147483648 ~ 2147483647, 1 [pulse]
+44, 1, External Port Mode 1, RW, 0, 0 ~ 3, -
+45, 1, External Port Mode 2, RW, 0, 0 ~ 3, -
+46, 1, External Port Mode 3, RW, 0, 0 ~ 3, -
+47, 1, External Port Mode 4, RW, 0, 0 ~ 3, -
+48, 1, Shutdown, RW, 58, 0 ~ 255, -
+49, 2, Indirect Address 1, RW, 634, 562 ~ 949, -
+51, 2, Indirect Address 2, RW, 635, 562 ~ 949, -
+53, 2, Indirect Address 3, RW, 636, 562 ~ 949, -
+…, 2, Indirect Address N, RW, …, 562 ~ 949, -
+559, 2, Indirect Address 256, RW, 889, 562 ~ 949, -
+562, 1, Torque Enable, RW, 0, 0 ~ 1, -
+563, 1, LED Red, RW, 0, 0 ~ 255, -
+564, 1, LED Green, RW, 0, 0 ~ 255, -
+565, 1, LED Blue, RW, 0, 0 ~ 255, -
+586, 2, Velocity I Gain, RW, 16, 0 ~ 65535, -
+588, 2, Velocity P Gain, RW, 256, 0 ~ 65535, -
+594, 2, Position P Gain, RW, 32, 0 ~ 65535, -
+596, 4, Goal Position, RW, -, Min Position Limit(40) ~ Max Position Limit(36), 1 [pulse]
+600, 4, Goal Velocity, RW, 0, -Velocity Limit(32) ~ Velocity Limit(32), 0.00397746 [rev/min]
+604, 2, Goal Torque, RW, 0, -Torque Limit(30) ~ Torque Limit(30), 16.11328 [mA]
+606, 4, Goal Acceleration, RW, 0, 0 ~ Acceleration Limit(26), 58000 [rev/min2]
+610, 1, Moving, R, -, -, -
+611, 4, Present Position, R, -, -, 1 [pulse]
+615, 4, Present Velocity, R, -, -, 0.00397746 [rev/min]
+621, 2, Present Current, R, -, -, 16.11328 [mA]
+623, 2, Present Input Voltage, R, -, -, 0.1 [V]
+625, 1, Present Temperature, R, -, -, 1 [°C]
+626, 2, External Port Data 1, R/RW, 0, 0 ~ 4095, -
+628, 2, External Port Data 2, R/RW, 0, 0 ~ 4095, -
+630, 2, External Port Data 3, R/RW, 0, 0 ~ 4095, -
+632, 2, External Port Data 4, R/RW, 0, 0 ~ 4095, -
+634, 1, Indirect Data 1, RW, 0, 0 ~ 255, -
+635, 1, Indirect Data 2, RW, 0, 0 ~ 255, -
+636, 1, Indirect Data 3, RW, 0, 0 ~ 255, -
+…, 1, Indirect Data N, RW, 0, 0 ~ 255, -
+889, 1, Indirect Data 256, RW, 0, 0 ~ 255, -
+890, 1, Registered Instruction, R, 0, -, -
+891, 1, Status Return Level, RW, 2, 0 ~ 2, -
+892, 1, Hardware Error Status, R, 0, -, -

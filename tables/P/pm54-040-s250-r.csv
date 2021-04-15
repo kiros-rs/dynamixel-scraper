@@ -1,0 +1,73 @@
+Address, Size(Byte), ModbusAddress, Data Name, Access, InitialValue, Range, Unit
+0, 2, 40001, Model Number, R, 2110, -, -
+2, 4, 40002, Model Information, R, -, -, -
+6, 1, 40004 (Lo Byte), Firmware Version, R, -, -, -
+7, 1, 40004 (Hi Byte), ID, RW, 1, 0 ~ 252, -
+8, 1, 40005 (Lo Byte), Baud Rate, RW, 1, 0 ~ 9, -
+9, 1, N/A, Return Delay Time, RW, 250, 0 ~ 254, 2 [μsec]
+10, 1, 40006 (Lo Byte), Drive Mode, RW, 0, 0 ~ 1, -
+11, 1, 40006 (Hi Byte), Operating Mode, RW, 3, 0 1 3 4 16, -
+12, 1, N/A, Sencondary ID, RW, 255, 0 ~ 255, -
+13, 1, 40007 (Hi Byte), Protocol Type, RW, 2, 2 10, -
+20, 4, 40011, Homing Offset, RW, 0, -2147483648 ~ 2147483647, 1 [pulse]
+24, 4, 40013, Moving Threshold, RW, 20, 0 ~ 2840, 0.01 [rev/min]
+31, 1, 40016 (Hi Byte), Temperature Limit, RW, 80, 0 ~ 100, 1 [°C]
+32, 2, 40017, Max Voltage Limit, RW, 350, 150 ~ 350, 0.1 [V]
+34, 2, 40018, Min Voltage Limit, RW, 150, 150 ~ 350, 0.1 [V]
+36, 2, 40019, PWM Limit, RW, 2009, 0 ~ 2009, 0.498 [%]
+38, 2, 40020, Current Limit, RW, 4470, 0 ~ 4470, 1 [mA]
+40, 4, 40021, Acceleration Limit, RW, 11037, 0 ~ 4414976, 1 [rev/min2]
+44, 4, 40023, Velocity Limit, RW, 2840, 0 ~ 2840, 0.01 [rev/min]
+48, 4, 40025, Max Position Limit, RW, 251173, -251417 ~ 251417, 1 [pulse]
+52, 4, 40027, Min Position Limit, RW, -251173, -251417 ~ 251417, 1 [pulse]
+56, 1, 40029 (Lo Byte), External Port Mode 1, RW, 3, 0 ~ 3, -
+57, 1, 40029 (Hi Byte), External Port Mode 2, RW, 3, 0 ~ 3, -
+58, 1, 40030 (Lo Byte), External Port Mode 3, RW, 3, 0 ~ 3, -
+59, 1, 40030 (Hi Byte), External Port Mode 4, RW, 3, 0 ~ 3, -
+63, 1, 40032 (Hi Byte), Shutdown, RW, 58, 0 ~ 255, -
+168, 2, N/A, Indirect Address 1, RW, 634, 512 ~ 1023, -
+170, 2, N/A, Indirect Address 2, RW, 635, 512 ~ 1023, -
+172, 2, N/A, Indirect Address 3, RW, 636, 512 ~ 1023, -
+…, …, …, …, …, …, …, …
+422, 2, N/A, Indirect Address 128, RW, 761, 512 ~ 1023, -
+512, 1, 40257 (Lo Byte), Torque Enable, RW, 0, 0 ~ 1, -
+513, 1, 40257 (Hi Byte), LED Red, RW, 0, 0 ~ 255, -
+514, 1, 40258 (Lo Byte), LED Green, RW, 0, 0 ~ 255, -
+515, 1, 40258 (Hi Byte), LED Blue, RW, 0, 0 ~ 255, -
+516, 1, N/A, Status Return Level, RW, 2, 0 ~ 2, -
+517, 1, N/A, Registered Instruction, R, 0, -, -
+518, 1, 40260 (Lo Byte), Hardware Error Status, R, 0, -, -
+524, 2, 40263, Velocity I Gain, RW, -, 0 ~ 32767, -
+526, 2, 40264, Velocity P Gain, RW, -, 0 ~ 32767, -
+528, 2, 40265, Position D Gain, RW, -, 0 ~ 32767, -
+530, 2, 40266, Position I Gain, RW, -, 0 ~ 32767, -
+532, 2, 40267, Position P Gain, RW, -, 0 ~ 32767, -
+536, 2, 40269, Feedforward 2nd Gain, RW, -, 0 ~ 32767, -
+538, 2, 40270, Feedforward 1st Gain, RW, -, 0 ~ 32767, -
+546, 1, 40274 (Lo Byte), Bus Watchdog, RW, -, 0 ~ 127, 20 [msec]
+548, 2, 40275, Goal PWM, RW, -, -PWM Limit(36) ~ PWM Limit(36), 0.498 [%]
+550, 2, 40276, Goal Current, RW, -, -Current Limit(38) ~ Current Limit(38), 1 [mA]
+552, 4, 40277, Goal Velocity, RW, -, -Velocity Limit(44) ~ Velocity Limit(44), 0.01 [rev/min]
+556, 4, 40279, Profile Acceleration, RW, -, 0 ~ Acceleration Limit(40), 1 [rev/min2]
+560, 4, 40281, Profile Velocity, RW, -, 0 ~ Velocity Limit(44), 0.01 [rev/min]
+564, 4, 40283, Goal Position, RW, -, Min Position Limit(52) ~ Max Position Limit(48), 1[pulse]
+568, 2, 40285, Realtime Tick, R, -, 0 ~ 32767, 1 [msec]
+570, 1, 40286 (Lo Byte), Moving, R, -, -, -
+571, 1, 40286 (Hi Byte), Moving Status, R, -, -, -
+572, 2, 40287, Present PWM, R, -, -, -
+574, 2, 40288, Present Current, R, -, -, 1 [mA]
+576, 4, 40289, Present Velocity, R, -, -, 0.01 [rev/min]
+580, 4, 40291, Present Position, R, -, -, 1 [pulse]
+584, 4, 40293, Velocity Trajectory, R, -, -, 0.01 [rev/min]
+588, 4, 40295, Position Trajectory, R, -, -, 1 [pulse]
+592, 2, 40297, Present Input Voltage, R, -, -, 0.1 [V]
+594, 1, 40298 (Lo Byte), Present Temperature, R, -, -, 1 [°C]
+600, 2, 40301, External Port Data 1, R/RW, 0, 0 ~ 4095, -
+602, 2, 40302, External Port Data 2, R/RW, 0, 0 ~ 4095, -
+604, 2, 40303, External Port Data 3, R/RW, 0, 0 ~ 4095, -
+606, 2, 40304, External Port Data 4, R/RW, 0, 0 ~ 4095, -
+634, 1, N/A, Indirect Data 1, RW, 0, 0 ~ 255, -
+635, 1, N/A, Indirect Data 2, RW, 0, 0 ~ 255, -
+636, 1, N/A, Indirect Data 3, RW, 0, 0 ~ 255, -
+…, …,  , …, …, …, …, …
+761, 1, N/A, Indirect Data 128, RW, 0, 0 ~ 255, -
