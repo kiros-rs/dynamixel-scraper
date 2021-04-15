@@ -1,9 +1,10 @@
 use scraper::{Html, Selector};
 use serde_yaml::Value;
 use std::fs;
-use std::thread;
 
-const NAVIGATION_URL: &str = "https://raw.githubusercontent.com/ROBOTIS-GIT/emanual/master/_data/navigation.yml";
+
+const NAVIGATION_URL: &str =
+    "https://raw.githubusercontent.com/ROBOTIS-GIT/emanual/master/_data/navigation.yml";
 const BASE_URL: &str = "https://emanual.robotis.com/docs/en";
 
 fn parse_table(data: &str, index: usize) -> String {
@@ -37,7 +38,12 @@ fn parse_table(data: &str, index: usize) -> String {
     for row in body_rows {
         let mut line = String::new();
         for item in row.select(&td_selector) {
-            let text = item.text().collect::<String>().chars().filter(|x| x != &',').collect::<String>();
+            let text = item
+                .text()
+                .collect::<String>()
+                .chars()
+                .filter(|x| x != &',')
+                .collect::<String>();
             if line.len() > 0 {
                 line.push_str(", ");
             }
@@ -52,12 +58,12 @@ fn parse_table(data: &str, index: usize) -> String {
     csv
 }
 
-fn merge_tables(url: &str, indexes: (usize, usize)) -> String{
+fn merge_tables(url: &str, indexes: (usize, usize)) -> String {
     let resp = reqwest::blocking::get(url).unwrap();
     let data = resp.text().unwrap();
     let mut eeprom = parse_table(&data, indexes.0);
     let ram = parse_table(&data, indexes.1);
-    
+
     // Make sure the headings are equal before combining
     assert_eq!(eeprom.lines().next(), ram.lines().next());
     eeprom.push('\n');
@@ -72,7 +78,12 @@ fn main() -> Result<(), serde_yaml::Error> {
     let dropdown_elements = &navigation["main"][0]["children"];
 
     for element in dropdown_elements.as_sequence().unwrap() {
-        let title: String = element["title"].as_str().unwrap().chars().filter(|x| x != &'*').collect();
+        let title: String = element["title"]
+            .as_str()
+            .unwrap()
+            .chars()
+            .filter(|x| x != &'*')
+            .collect();
         let mut counter = 0;
         if title.contains("Series") {
             let children = element["children"].as_sequence().unwrap();
@@ -80,9 +91,13 @@ fn main() -> Result<(), serde_yaml::Error> {
                 let url = format!("{}{}", BASE_URL, child["url"].as_str().unwrap());
                 let dir = format!("tables/{}", title.split_whitespace().next().unwrap());
                 fs::create_dir_all(&dir).unwrap();
-                
+
                 let mut url_chunks = url.split('/');
-                let path = format!("{}/{}.csv", &dir, url_chunks.nth(url.split('/').count() - 2).unwrap());
+                let path = format!(
+                    "{}/{}.csv",
+                    &dir,
+                    url_chunks.nth(url.split('/').count() - 2).unwrap()
+                );
                 fs::write(path, merge_tables(&url, (1, 2))).unwrap();
 
                 counter += 1;
