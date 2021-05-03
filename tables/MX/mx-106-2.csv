@@ -1,4 +1,4 @@
-Address, Size(Byte), Data Name, Description, Access, InitialValue
+Address, Size(byte), Data Name, Description, Access, Initial Value
 0, 2, Model Number, Model Number, R, 321
 2, 4, Model Information, Model Information, R, -
 6, 1, Firmware Version, Firmware Version, R, -

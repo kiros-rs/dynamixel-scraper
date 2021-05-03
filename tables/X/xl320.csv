@@ -1,4 +1,4 @@
-Address, Size(Byte), Data Name, Description, Access, InitialValue, Min, Max
+Address, Size(byte), Data Name, Description, Access, Initial Value, Min, Max
 0, 2, Model Number, Model Number, R, 350, -, -
 2, 1, Firmware Version, Firmware Version, R, -, -, -
 3, 1, ID, DYNAMIXEL ID, RW, 1, 0, 252

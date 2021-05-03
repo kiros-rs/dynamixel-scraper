@@ -1,4 +1,4 @@
-Address, Size(Byte), ModbusAddress, Data Name, Access, InitialValue, Range, Unit
+Address, Size(byte), Modbus Address, Data Name, Access, Initial Value, Range, Unit
 0, 2, 40001, Model Number, R, 2000, -, -
 2, 4, 40002, Model Information, R, -, -, -
 6, 1, 40004 (Lo Byte), Firmware Version, R, -, -, -

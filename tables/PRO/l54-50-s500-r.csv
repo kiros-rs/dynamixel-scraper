@@ -1,4 +1,4 @@
-Address, Size(Byte), Data Name, Access, InitialValue, Range, Unit
+Address, Size(byte), Data Name, Access, Initial Value, Range, Unit
 0, 2, Model Number, R, 38152, -, -
 2, 4, Model Information, R, -, -, -
 6, 1, Firmware Version, R, -, -, -

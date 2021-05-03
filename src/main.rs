@@ -2,6 +2,7 @@ use scraper::{ElementRef, Html, Selector};
 use serde_yaml::Value;
 use std::fs;
 use threadpool::ThreadPool;
+use convert_case::{Case, Casing};
 
 const NAVIGATION_URL: &str =
     "https://raw.githubusercontent.com/ROBOTIS-GIT/emanual/master/_data/navigation.yml";
@@ -23,11 +24,11 @@ fn parse_table(table: ElementRef) -> String {
             csv.push_str(", ");
         }
 
-        csv.push_str(&text);
+        csv.push_str(&text.to_case(Case::Title));
         num_headings += 1;
     }
 
-    csv.push_str("\n");
+    csv.push('\n');
     let body = table.select(&body_selector);
 
     for element in body {
@@ -98,10 +99,10 @@ impl Actuator {
         }
     }
 
-    fn write_table(&self, data: String) {
+    fn write_table(&self) {
         fs::create_dir_all(&self.dir).unwrap();
         let path = format!("{}/{}.csv", self.dir, self.raw_name);
-        fs::write(path, data).unwrap();
+        fs::write(path, merge_tables(&self.url, (1, 2))).unwrap();
     }
 }
 
@@ -133,11 +134,13 @@ fn main() -> Result<(), serde_yaml::Error> {
     let actuator_pool = ThreadPool::new(actuators.len());
     for actuator in actuators {
         actuator_pool.execute(move || {
-            actuator.write_table(merge_tables(&actuator.url, (1, 2)));
+            actuator.write_table();
         })
     }
 
     actuator_pool.join();
+
+
 
     Ok(())
 }

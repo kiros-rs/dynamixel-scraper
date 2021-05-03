@@ -130,6 +130,7 @@ dependencies = [
 name = "dynamixel-scraper"
 version = "0.1.0"
 dependencies = [
+ "convert_case",
  "reqwest",
  "scraper",
  "serde",
