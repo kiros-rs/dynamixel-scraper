@@ -12,16 +12,13 @@ fn parse_table(data: &str, index: usize) -> String {
     let mut csv = String::new();
 
     let table_selector = Selector::parse("table").unwrap();
-    let heading_selector = Selector::parse("thead").unwrap();
-    let body_selector = Selector::parse("tbody").unwrap();
-    let row_selector = Selector::parse("tr").unwrap();
-    let th_selector = Selector::parse("th").unwrap();
-    let td_selector = Selector::parse("td").unwrap();
+    let heading_selector = Selector::parse("thead>tr>th").unwrap();
+    let body_selector = Selector::parse("tbody>tr>td").unwrap();
 
     let table = document.select(&table_selector).nth(index).unwrap();
-    let heading = table.select(&heading_selector).next().unwrap();
-    let heading_row = heading.select(&row_selector).next().unwrap();
-    let headings: Vec<_> = heading_row.select(&th_selector).collect();
+    let headings: Vec<_> = table.select(&heading_selector).collect();
+    let mut num_headings = 0;
+    let mut items_in_line = 0;
 
     for item in headings {
         let text = String::from(item.text().collect::<String>());
@@ -30,28 +27,37 @@ fn parse_table(data: &str, index: usize) -> String {
         }
 
         csv.push_str(&text);
+        num_headings += 1;
     }
 
-    let body = table.select(&body_selector).next().unwrap();
-    let body_rows = body.select(&row_selector);
+    csv.push_str("\n");
+    let body = table.select(&body_selector);
 
-    for row in body_rows {
+    for element in body {
         let mut line = String::new();
-        for item in row.select(&td_selector) {
-            let text = item
-                .text()
-                .collect::<String>()
-                .chars()
-                .filter(|x| x != &',')
-                .collect::<String>();
-            if line.len() > 0 {
-                line.push_str(", ");
-            }
+        let text = element
+        .text()
+        .collect::<String>()
+        .chars()
+        .filter(|x| x != &',')
+        .collect::<String>();
 
-            line.push_str(&text);
+        if text.is_empty() {
+            continue;
         }
 
-        csv.push('\n');
+        if items_in_line > 0 {
+            line.push_str(", ");
+        }
+
+        line.push_str(&text);
+        items_in_line += 1;
+
+        if items_in_line == num_headings {
+            line.push('\n');
+            items_in_line = 0;
+        }
+        
         csv.push_str(&line);
     }
 
@@ -66,7 +72,6 @@ fn merge_tables(url: &str, indexes: (usize, usize)) -> String {
 
     // Make sure the headings are equal before combining
     assert_eq!(eeprom.lines().next(), ram.lines().next());
-    eeprom.push('\n');
     eeprom.push_str(&ram.lines().skip(1).collect::<Vec<_>>().join("\n"));
 
     eeprom
