@@ -1,4 +1,4 @@
-use scraper::{Html, Selector};
+use scraper::{Html, Selector, ElementRef};
 use serde_yaml::Value;
 use std::fs;
 
@@ -7,15 +7,12 @@ const NAVIGATION_URL: &str =
     "https://raw.githubusercontent.com/ROBOTIS-GIT/emanual/master/_data/navigation.yml";
 const BASE_URL: &str = "https://emanual.robotis.com/docs/en";
 
-fn parse_table(data: &str, index: usize) -> String {
-    let document = Html::parse_document(data);
+fn parse_table(table: ElementRef) -> String {
     let mut csv = String::new();
 
-    let table_selector = Selector::parse("table").unwrap();
     let heading_selector = Selector::parse("thead>tr>th").unwrap();
     let body_selector = Selector::parse("tbody>tr>td").unwrap();
-
-    let table = document.select(&table_selector).nth(index).unwrap();
+    
     let headings: Vec<_> = table.select(&heading_selector).collect();
     let mut num_headings = 0;
     let mut items_in_line = 0;
@@ -66,9 +63,14 @@ fn parse_table(data: &str, index: usize) -> String {
 
 fn merge_tables(url: &str, indexes: (usize, usize)) -> String {
     let resp = reqwest::blocking::get(url).unwrap();
-    let data = resp.text().unwrap();
-    let mut eeprom = parse_table(&data, indexes.0);
-    let ram = parse_table(&data, indexes.1);
+    let document = Html::parse_document(&resp.text().unwrap());
+ 
+    let table_selector = Selector::parse("table").unwrap();
+    let eeprom_table = document.select(&table_selector).nth(indexes.0).unwrap();
+    let ram_table = document.select(&table_selector).nth(indexes.1).unwrap();
+
+    let mut eeprom = parse_table(eeprom_table);
+    let ram = parse_table(ram_table);
 
     // Make sure the headings are equal before combining
     assert_eq!(eeprom.lines().next(), ram.lines().next());
