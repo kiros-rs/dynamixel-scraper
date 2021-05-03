@@ -5,3 +5,4 @@ WARNING: The script used to parse this data makes a lot of assumptions about how
 
 TODO: Write a parser to ensure the output is gramatically correct and corrects for common errors
 TODO: Normalise this data?
+TODO: Add individual progress bars for each actuator (`MultiProgress` with different stages for download/parse/lint etc)

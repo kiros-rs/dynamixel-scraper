@@ -1,4 +1,5 @@
 use convert_case::{Case, Casing};
+use indicatif::{ProgressBar, ProgressStyle};
 use scraper::{ElementRef, Html, Selector};
 use serde_yaml::Value;
 use std::fs;
@@ -80,6 +81,7 @@ fn merge_tables(url: &str, indexes: (usize, usize)) -> String {
     eeprom
 }
 
+#[derive(Clone, Debug)]
 struct Actuator {
     url: String,
     dir: String,
@@ -132,13 +134,23 @@ fn main() -> Result<(), serde_yaml::Error> {
     }
 
     let actuator_pool = ThreadPool::new(actuators.len());
-    for actuator in actuators {
+    for actuator in actuators.clone() {
         actuator_pool.execute(move || {
             actuator.write_table();
         })
     }
 
-    actuator_pool.join();
+    println!("Download progress:");
+    let bar = ProgressBar::new(actuators.len() as u64);
+    bar.set_style(
+        ProgressStyle::default_bar()
+            .template("[{elapsed_precise}] {bar:cyan/blue} {pos}/{len} {msg}")
+            .progress_chars("##-"),
+    );
+    while actuator_pool.active_count() > 0 {
+        bar.set_position((actuators.len() - actuator_pool.active_count()) as u64)
+    }
+    bar.finish_with_message("Download complete!");
 
     Ok(())
 }
