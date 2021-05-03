@@ -1,7 +1,7 @@
-use scraper::{Html, Selector, ElementRef};
+use scraper::{ElementRef, Html, Selector};
 use serde_yaml::Value;
 use std::fs;
-
+use threadpool::ThreadPool;
 
 const NAVIGATION_URL: &str =
     "https://raw.githubusercontent.com/ROBOTIS-GIT/emanual/master/_data/navigation.yml";
@@ -12,7 +12,7 @@ fn parse_table(table: ElementRef) -> String {
 
     let heading_selector = Selector::parse("thead>tr>th").unwrap();
     let body_selector = Selector::parse("tbody>tr>td").unwrap();
-    
+
     let headings: Vec<_> = table.select(&heading_selector).collect();
     let mut num_headings = 0;
     let mut items_in_line = 0;
@@ -33,11 +33,11 @@ fn parse_table(table: ElementRef) -> String {
     for element in body {
         let mut line = String::new();
         let text = element
-        .text()
-        .collect::<String>()
-        .chars()
-        .filter(|x| x != &',')
-        .collect::<String>();
+            .text()
+            .collect::<String>()
+            .chars()
+            .filter(|x| x != &',')
+            .collect::<String>();
 
         if text.is_empty() {
             continue;
@@ -54,7 +54,7 @@ fn parse_table(table: ElementRef) -> String {
             line.push('\n');
             items_in_line = 0;
         }
-        
+
         csv.push_str(&line);
     }
 
@@ -64,7 +64,7 @@ fn parse_table(table: ElementRef) -> String {
 fn merge_tables(url: &str, indexes: (usize, usize)) -> String {
     let resp = reqwest::blocking::get(url).unwrap();
     let document = Html::parse_document(&resp.text().unwrap());
- 
+
     let table_selector = Selector::parse("table").unwrap();
     let eeprom_table = document.select(&table_selector).nth(indexes.0).unwrap();
     let ram_table = document.select(&table_selector).nth(indexes.1).unwrap();
@@ -79,10 +79,38 @@ fn merge_tables(url: &str, indexes: (usize, usize)) -> String {
     eeprom
 }
 
+struct Actuator {
+    url: String,
+    dir: String,
+    raw_name: String,
+    name: String,
+}
+
+impl Actuator {
+    fn new(url: String, name: String, series: String) -> Actuator {
+        let raw_name = url.split('/').nth_back(1).unwrap();
+
+        Actuator {
+            url: url.clone(),
+            dir: format!("tables/{}", series.split_whitespace().next().unwrap()),
+            raw_name: raw_name.to_string(),
+            name,
+        }
+    }
+
+    fn write_table(&self, data: String) {
+        fs::create_dir_all(&self.dir).unwrap();
+        let path = format!("{}/{}.csv", self.dir, self.raw_name);
+        fs::write(path, data).unwrap();
+    }
+}
+
 fn main() -> Result<(), serde_yaml::Error> {
     let yaml = reqwest::blocking::get(NAVIGATION_URL).unwrap();
     let navigation: Value = serde_yaml::from_str(&yaml.text().unwrap())?;
     let dropdown_elements = &navigation["main"][0]["children"];
+
+    let mut actuators: Vec<Actuator> = Vec::new();
 
     for element in dropdown_elements.as_sequence().unwrap() {
         let title: String = element["title"]
@@ -91,28 +119,25 @@ fn main() -> Result<(), serde_yaml::Error> {
             .chars()
             .filter(|x| x != &'*')
             .collect();
-        let mut counter = 0;
         if title.contains("Series") {
             let children = element["children"].as_sequence().unwrap();
             for child in children {
                 let url = format!("{}{}", BASE_URL, child["url"].as_str().unwrap());
-                let dir = format!("tables/{}", title.split_whitespace().next().unwrap());
-                fs::create_dir_all(&dir).unwrap();
-
-                let mut url_chunks = url.split('/');
-                let path = format!(
-                    "{}/{}.csv",
-                    &dir,
-                    url_chunks.nth(url.split('/').count() - 2).unwrap()
-                );
-                fs::write(path, merge_tables(&url, (1, 2))).unwrap();
-
-                counter += 1;
+                let name = child["title"].as_str().unwrap().to_string();
+                let dxl = Actuator::new(url, name, title.clone());
+                actuators.push(dxl);
             }
-
-            println!("Found {} matches for {}", counter, title);
         }
     }
+
+    let actuator_pool = ThreadPool::new(actuators.len());
+    for actuator in actuators {
+        actuator_pool.execute(move || {
+            actuator.write_table(merge_tables(&actuator.url, (1, 2)));
+        })
+    }
+
+    actuator_pool.join();
 
     Ok(())
 }
