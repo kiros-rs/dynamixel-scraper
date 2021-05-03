@@ -1,8 +1,8 @@
+use convert_case::{Case, Casing};
 use scraper::{ElementRef, Html, Selector};
 use serde_yaml::Value;
 use std::fs;
 use threadpool::ThreadPool;
-use convert_case::{Case, Casing};
 
 const NAVIGATION_URL: &str =
     "https://raw.githubusercontent.com/ROBOTIS-GIT/emanual/master/_data/navigation.yml";
@@ -139,8 +139,6 @@ fn main() -> Result<(), serde_yaml::Error> {
     }
 
     actuator_pool.join();
-
-
 
     Ok(())
 }
