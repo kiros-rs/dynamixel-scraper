@@ -1,9 +1,9 @@
 use convert_case::{Case, Casing};
-use indicatif::{ProgressBar, ProgressStyle};
+use futures_util::stream::StreamExt;
 use scraper::{ElementRef, Html, Selector};
 use serde_yaml::Value;
 use std::fs;
-use threadpool::ThreadPool;
+use tokio_stream as stream;
 
 const NAVIGATION_URL: &str =
     "https://raw.githubusercontent.com/ROBOTIS-GIT/emanual/master/_data/navigation.yml";
@@ -63,9 +63,8 @@ fn parse_table(table: ElementRef) -> String {
     csv
 }
 
-fn merge_tables(url: &str, indexes: (usize, usize)) -> String {
-    let resp = reqwest::blocking::get(url).unwrap();
-    let document = Html::parse_document(&resp.text().unwrap());
+fn merge_tables(page: &str, indexes: (usize, usize)) -> String {
+    let document = Html::parse_document(page);
 
     let table_selector = Selector::parse("table").unwrap();
     let eeprom_table = document.select(&table_selector).nth(indexes.0).unwrap();
@@ -101,16 +100,17 @@ impl Actuator {
         }
     }
 
-    fn write_table(&self) {
+    fn write_table(&self, text: &str) {
         fs::create_dir_all(&self.dir).unwrap();
         let path = format!("{}/{}.csv", self.dir, self.raw_name);
-        fs::write(path, merge_tables(&self.url, (1, 2))).unwrap();
+        fs::write(path, merge_tables(text, (1, 2))).unwrap();
     }
 }
 
-fn main() -> Result<(), serde_yaml::Error> {
-    let yaml = reqwest::blocking::get(NAVIGATION_URL).unwrap();
-    let navigation: Value = serde_yaml::from_str(&yaml.text().unwrap())?;
+#[tokio::main]
+async fn main() -> Result<(), serde_yaml::Error> {
+    let yaml = reqwest::get(NAVIGATION_URL).await.unwrap();
+    let navigation: Value = serde_yaml::from_str(&yaml.text().await.unwrap())?;
     let dropdown_elements = &navigation["main"][0]["children"];
 
     let mut actuators: Vec<Actuator> = Vec::new();
@@ -133,24 +133,19 @@ fn main() -> Result<(), serde_yaml::Error> {
         }
     }
 
-    let actuator_pool = ThreadPool::new(actuators.len());
-    for actuator in actuators.clone() {
-        actuator_pool.execute(move || {
-            actuator.write_table();
-        })
-    }
+    let client = reqwest::Client::new();
+    let mut stream = stream::iter(actuators.clone())
+        .map(|dxl| client.get(&dxl.url).send())
+        .buffer_unordered(20);
 
-    println!("Download progress:");
-    let bar = ProgressBar::new(actuators.len() as u64);
-    bar.set_style(
-        ProgressStyle::default_bar()
-            .template("[{elapsed_precise}] {bar:cyan/blue} {pos}/{len} {msg}")
-            .progress_chars("##-"),
-    );
-    while actuator_pool.active_count() > 0 {
-        bar.set_position((actuators.len() - actuator_pool.active_count()) as u64)
+    while let Some(Ok(response)) = stream.next().await {
+        let index = actuators
+            .iter()
+            .position(|x| x.url == response.url().as_str())
+            .unwrap();
+        let text = response.text().await.unwrap();
+        actuators[index].write_table(&text);
     }
-    bar.finish_with_message("Download complete!");
 
     Ok(())
 }
