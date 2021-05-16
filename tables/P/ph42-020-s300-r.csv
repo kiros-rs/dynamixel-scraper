@@ -2,7 +2,7 @@ Address, Size(byte), Modbus Address, Data Name, Access, Initial Value, Range, Un
 0, 2, 40001, Model Number, R, 2000, -, -
 2, 4, 40002, Model Information, R, -, -, -
 6, 1, 40004 (Lo Byte), Firmware Version, R, -, -, -
-7, 1, 40004 (Hi Byte), ID, RW, 1, 0 ~ 252, -
+7, 1, 40004 (Hi Byte), ID, RW, 1, 0 ~ 252 (DYNAMIXEL Protocol 2.0)  1 ~ 247 (Modbus), -
 8, 1, 40005 (Lo Byte), Baud Rate, RW, 1, 0 ~ 9, -
 9, 1, N/A, Return Delay Time, RW, 250, 0 ~ 254, 2 [μsec]
 10, 1, 40006 (Lo Byte), Drive Mode, RW, 0, 0 ~ 1, -
@@ -24,7 +24,7 @@ Address, Size(byte), Modbus Address, Data Name, Access, Initial Value, Range, Un
 57, 1, 40029 (Hi Byte), External Port Mode 2, RW, 3, 0 ~ 3, -
 58, 1, 40030 (Lo Byte), External Port Mode 3, RW, 3, 0 ~ 3, -
 59, 1, 40030 (Hi Byte), External Port Mode 4, RW, 3, 0 ~ 3, -
-63, 1, 40032 (Hi Byte), Shutdown, RW, 58, 0 ~ 255, -
+63, 1, 40032 (Hi Byte), Shutdown, RW, 58, 0 ~ 63, -
 168, 2, N/A, Indirect Address 1, RW, 634, 512 ~ 1023, -
 170, 2, N/A, Indirect Address 2, RW, 635, 512 ~ 1023, -
 172, 2, N/A, Indirect Address 3, RW, 636, 512 ~ 1023, -
@@ -37,14 +37,14 @@ Address, Size(byte), Modbus Address, Data Name, Access, Initial Value, Range, Un
 516, 1, N/A, Status Return Level, RW, 2, 0 ~ 2, -
 517, 1, N/A, Registered Instruction, R, 0, -, -
 518, 1, 40260 (Lo Byte), Hardware Error Status, R, 0, -, -
-524, 2, 40263, Velocity I Gain, RW, -, 0 ~ 32767, -
-526, 2, 40264, Velocity P Gain, RW, -, 0 ~ 32767, -
-528, 2, 40265, Position D Gain, RW, -, 0 ~ 32767, -
-530, 2, 40266, Position I Gain, RW, -, 0 ~ 32767, -
-532, 2, 40267, Position P Gain, RW, -, 0 ~ 32767, -
-536, 2, 40269, Feedforward 2nd Gain, RW, -, 0 ~ 32767, -
-538, 2, 40270, Feedforward 1st Gain, RW, -, 0 ~ 32767, -
-546, 1, 40274 (Lo Byte), Bus Watchdog, RW, -, 0 ~ 127, 20 [msec]
+524, 2, 40263, Velocity I Gain, RW, 502, 0 ~ 32767, -
+526, 2, 40264, Velocity P Gain, RW, 1332, 0 ~ 32767, -
+528, 2, 40265, Position D Gain, RW, 0, 0 ~ 32767, -
+530, 2, 40266, Position I Gain, RW, 0, 0 ~ 32767, -
+532, 2, 40267, Position P Gain, RW, 879, 0 ~ 32767, -
+536, 2, 40269, Feedforward 2nd Gain, RW, 0, 0 ~ 32767, -
+538, 2, 40270, Feedforward 1st Gain, RW, 0, 0 ~ 32767, -
+546, 1, 40274 (Lo Byte), Bus Watchdog, RW, 0, 0 ~ 127, 20 [msec]
 548, 2, 40275, Goal PWM, RW, -, -PWM Limit(36) ~ PWM Limit(36), 0.498 [%]
 550, 2, 40276, Goal Current, RW, -, -Current Limit(38) ~ Current Limit(38), 1 [mA]
 552, 4, 40277, Goal Velocity, RW, -, -Velocity Limit(44) ~ Velocity Limit(44), 0.01 [rev/min]
