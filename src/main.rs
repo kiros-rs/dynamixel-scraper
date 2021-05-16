@@ -4,12 +4,13 @@ use scraper::{ElementRef, Html, Selector};
 use serde_yaml::Value;
 use std::fs;
 use tokio_stream as stream;
+use anyhow::Result;
 
 const NAVIGATION_URL: &str =
     "https://raw.githubusercontent.com/ROBOTIS-GIT/emanual/master/_data/navigation.yml";
 const BASE_URL: &str = "https://emanual.robotis.com/docs/en";
 
-fn parse_table(table: ElementRef) -> String {
+fn parse_table(table: ElementRef) -> Result<String> {
     let mut csv = String::new();
 
     let heading_selector = Selector::parse("thead>tr>th").unwrap();
@@ -60,24 +61,24 @@ fn parse_table(table: ElementRef) -> String {
         csv.push_str(&line);
     }
 
-    csv
+    Ok(csv)
 }
 
-fn merge_tables(page: &str, indexes: (usize, usize)) -> String {
+fn merge_tables(page: &str, indexes: (usize, usize)) -> Result<String> {
     let document = Html::parse_document(page);
 
     let table_selector = Selector::parse("table").unwrap();
     let eeprom_table = document.select(&table_selector).nth(indexes.0).unwrap();
     let ram_table = document.select(&table_selector).nth(indexes.1).unwrap();
 
-    let mut eeprom = parse_table(eeprom_table);
-    let ram = parse_table(ram_table);
+    let mut eeprom = parse_table(eeprom_table)?;
+    let ram = parse_table(ram_table)?;
 
     // Make sure the headings are equal before combining
     assert_eq!(eeprom.lines().next(), ram.lines().next());
     eeprom.push_str(&ram.lines().skip(1).collect::<Vec<_>>().join("\n"));
 
-    eeprom
+    Ok(eeprom)
 }
 
 #[derive(Clone, Debug)]
@@ -89,28 +90,30 @@ struct Actuator {
 }
 
 impl Actuator {
-    fn new(url: String, name: String, series: String) -> Actuator {
+    fn new(url: String, name: String, series: String) -> Result<Actuator> {
         let raw_name = url.split('/').nth_back(1).unwrap();
 
-        Actuator {
+        Ok(Actuator {
             url: url.clone(),
             dir: format!("tables/{}", series.split_whitespace().next().unwrap()),
             raw_name: raw_name.to_string(),
             name,
-        }
+        })
     }
 
-    fn write_table(&self, text: &str) {
-        fs::create_dir_all(&self.dir).unwrap();
+    fn write_table(&self, text: &str) -> Result<()>{
+        fs::create_dir_all(&self.dir)?;
         let path = format!("{}/{}.csv", self.dir, self.raw_name);
-        fs::write(path, merge_tables(text, (1, 2))).unwrap();
+        fs::write(path, merge_tables(text, (1, 2))?)?;
+
+        Ok(())
     }
 }
 
 #[tokio::main]
-async fn main() -> Result<(), serde_yaml::Error> {
-    let yaml = reqwest::get(NAVIGATION_URL).await.unwrap();
-    let navigation: Value = serde_yaml::from_str(&yaml.text().await.unwrap())?;
+async fn main() -> Result<()> {
+    let yaml = reqwest::get(NAVIGATION_URL).await?;
+    let navigation: Value = serde_yaml::from_str(&yaml.text().await?)?;
     let dropdown_elements = &navigation["main"][0]["children"];
 
     let mut actuators: Vec<Actuator> = Vec::new();
@@ -127,7 +130,7 @@ async fn main() -> Result<(), serde_yaml::Error> {
             for child in children {
                 let url = format!("{}{}", BASE_URL, child["url"].as_str().unwrap());
                 let name = child["title"].as_str().unwrap().to_string();
-                let dxl = Actuator::new(url, name, title.clone());
+                let dxl = Actuator::new(url, name, title.clone())?;
                 actuators.push(dxl);
             }
         }
@@ -143,8 +146,8 @@ async fn main() -> Result<(), serde_yaml::Error> {
             .iter()
             .position(|x| x.url == response.url().as_str())
             .unwrap();
-        let text = response.text().await.unwrap();
-        actuators[index].write_table(&text);
+        let text = response.text().await?;
+        actuators[index].write_table(&text)?;
     }
 
     Ok(())
