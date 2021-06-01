@@ -2,9 +2,8 @@ mod analysis;
 mod download;
 mod serialize;
 
-use analysis::display_analysis;
 use anyhow::Result;
-use clap::{App, Arg, ArgGroup, SubCommand};
+use clap::{App, Arg, ArgGroup};
 use download::merge_tables;
 use futures_util::stream::StreamExt;
 use serde_yaml::Value;
@@ -15,9 +14,11 @@ use tokio_stream as stream;
 #[derive(Clone, Debug)]
 struct Actuator {
     url: String,
-    dir: String,
+    series: String,
     raw_name: String,
     name: String,
+    contents: Option<String>,
+    pub text: String,
 }
 
 impl Actuator {
@@ -26,20 +27,36 @@ impl Actuator {
 
         Ok(Actuator {
             url: url.clone(),
-            dir: format!("tables/{}", series.split_whitespace().next().unwrap()),
+            series: series.split_whitespace().next().unwrap().to_string(),
             raw_name: raw_name.to_string(),
             name,
+            contents: None,
+            text: String::new(),
         })
     }
 
-    fn write_table(&self, text: &str) -> Result<()> {
-        fs::create_dir_all(&self.dir)?;
-        let path = format!("{}/{}.csv", self.dir, self.raw_name);
-        let contents = merge_tables(text, (1, 2))?;
-        // display_analysis(&contents);
-        // fs::write(path, contents)?;
-        println!("Servo: {}", self.name);
-        serialize_servo(&contents);
+    fn get_contents(&mut self) -> Result<String> {
+        if let Some(contents) = &self.contents {
+            Ok(contents.to_string())
+        } else {
+            self.contents = Some(merge_tables(&self.text, (1, 2))?);
+
+            Ok(self.contents.clone().unwrap())
+        }
+    }
+
+    fn write_table(&mut self) -> Result<()> {
+        fs::create_dir_all(format!("tables/{}", &self.series))?;
+        let path = format!("tables/{}/{}.csv", &self.series, &self.raw_name);
+        fs::write(path, self.get_contents()?)?;
+
+        Ok(())
+    }
+
+    fn write_object(&mut self) -> Result<()> {
+        fs::create_dir_all(format!("objects/{}", &self.series))?;
+        let path = format!("objects/{}/{}.ron", &self.series, &self.raw_name);
+        fs::write(path, serialize_servo(&self.get_contents()?)?)?;
 
         Ok(())
     }
@@ -51,6 +68,16 @@ async fn main() -> Result<()> {
                         .version("0.1")
                         .author("Angus Finch <developer.finchie@gmail.com>")
                         .about("Scrapes the Robotis E-Manual for Dynamixel control tables")
+                        .arg(Arg::with_name("csv")
+                            .long("csv")
+                            .takes_value(false)
+                            .help("If the control table should be output in CSV notation"))
+                        .arg(Arg::with_name("ron")
+                            .long("ron")
+                            .takes_value(false)
+                            .help("If the control table should be output in RON"))
+                        .group(ArgGroup::with_name("format")
+                            .args(&["csv", "ron"]))
                         .arg(Arg::with_name("dynamixel")
                             .short("d")
                             .long("dxl")
@@ -136,8 +163,21 @@ async fn main() -> Result<()> {
             .iter()
             .position(|x| x.url == response.url().as_str())
             .unwrap();
-        let text = response.text().await?;
-        actuators[index].write_table(&text)?;
+        
+        actuators[index].text = response.text().await?;
+
+        if matches.is_present("format") {
+            if matches.is_present("csv") {
+                actuators[index].write_table()?;
+            }
+            
+            if matches.is_present("ron") {
+                actuators[index].write_object()?;
+            }
+        } else {
+            actuators[index].write_table()?;
+            actuators[index].write_object()?;
+        }
     }
 
     Ok(())

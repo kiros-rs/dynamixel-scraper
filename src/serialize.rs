@@ -1,7 +1,7 @@
 use anyhow::Result;
 use movement::dynamixel::{AccessLevel, ControlTableData};
 use regex::Regex;
-use serde_yaml;
+use ron::ser::{to_string_pretty, PrettyConfig};
 use std::collections::HashMap;
 
 fn try_find(
@@ -44,11 +44,11 @@ pub fn serialize_servo(servo: &str) -> Result<String> {
             if caps.is_none() {
                 lines.push(line_to_add);
             } else {
-                println!("Captured line: {:?}", line_to_add);
+                // println!("Captured line: {:?}", line_to_add);
                 let caps = caps.unwrap();
                 let current_match = caps.get(caps.len() - 1).unwrap().as_str();
                 if !current_match.chars().all(char::is_numeric) {
-                    println!("Discarded {:?}", current_match);
+                    // println!("Discarded {:?}", current_match);
                     continue;
                 }
 
@@ -65,8 +65,8 @@ pub fn serialize_servo(servo: &str) -> Result<String> {
         }
     }
 
-    println!("Highest: {}", highest_address.unwrap_or(0));
-    println!("Lowest: {}", lowest_address.unwrap_or(0));
+    // println!("Highest: {}", highest_address.unwrap_or(0));
+    // println!("Lowest: {}", lowest_address.unwrap_or(0));
 
     let headings: Vec<&str> = servo.lines().next().unwrap().split(", ").collect();
     let mut indexes: HashMap<&str, usize> = HashMap::new();
@@ -105,5 +105,10 @@ pub fn serialize_servo(servo: &str) -> Result<String> {
     //     println!("{:?}", line);
     // }
 
-    Ok(String::new())
+    let pretty = PrettyConfig::new()
+        .with_separate_tuple_members(true)
+        .with_enumerate_arrays(true);
+    let s = to_string_pretty(&data, pretty)?;
+    // let s = to_string(&data)?;
+    Ok(s)
 }
