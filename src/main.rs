@@ -1,85 +1,19 @@
-use convert_case::{Case, Casing};
-use futures_util::stream::StreamExt;
-use scraper::{ElementRef, Html, Selector};
-use serde_yaml::Value;
-use std::fs;
-use tokio_stream as stream;
+mod analysis;
+mod download;
+mod serialize;
+
 use anyhow::Result;
+use analysis::display_analysis;
+use download::merge_tables;
+use futures_util::stream::StreamExt;
+use tokio_stream as stream;
+use std::fs;
+use serde_yaml::Value;
+use serialize::serialize_servo;
 
 const NAVIGATION_URL: &str =
     "https://raw.githubusercontent.com/ROBOTIS-GIT/emanual/master/_data/navigation.yml";
 const BASE_URL: &str = "https://emanual.robotis.com/docs/en";
-
-fn parse_table(table: ElementRef) -> Result<String> {
-    let mut csv = String::new();
-
-    let heading_selector = Selector::parse("thead>tr>th").unwrap();
-    let body_selector = Selector::parse("tbody>tr>td").unwrap();
-
-    let headings: Vec<_> = table.select(&heading_selector).collect();
-    let mut num_headings = 0;
-    let mut items_in_line = 0;
-
-    for item in headings {
-        let text = String::from(item.text().collect::<String>());
-        if csv.len() > 0 {
-            csv.push_str(", ");
-        }
-
-        csv.push_str(&text.to_case(Case::Title));
-        num_headings += 1;
-    }
-
-    csv.push('\n');
-    let body = table.select(&body_selector);
-
-    for element in body {
-        let mut line = String::new();
-        let text = element
-            .text()
-            .collect::<String>()
-            .chars()
-            .filter(|x| x != &',')
-            .collect::<String>();
-
-        if text.is_empty() {
-            continue;
-        }
-
-        if items_in_line > 0 {
-            line.push_str(", ");
-        }
-
-        line.push_str(&text);
-        items_in_line += 1;
-
-        if items_in_line == num_headings {
-            line.push('\n');
-            items_in_line = 0;
-        }
-
-        csv.push_str(&line);
-    }
-
-    Ok(csv)
-}
-
-fn merge_tables(page: &str, indexes: (usize, usize)) -> Result<String> {
-    let document = Html::parse_document(page);
-
-    let table_selector = Selector::parse("table").unwrap();
-    let eeprom_table = document.select(&table_selector).nth(indexes.0).unwrap();
-    let ram_table = document.select(&table_selector).nth(indexes.1).unwrap();
-
-    let mut eeprom = parse_table(eeprom_table)?;
-    let ram = parse_table(ram_table)?;
-
-    // Make sure the headings are equal before combining
-    assert_eq!(eeprom.lines().next(), ram.lines().next());
-    eeprom.push_str(&ram.lines().skip(1).collect::<Vec<_>>().join("\n"));
-
-    Ok(eeprom)
-}
 
 #[derive(Clone, Debug)]
 struct Actuator {
@@ -104,7 +38,11 @@ impl Actuator {
     fn write_table(&self, text: &str) -> Result<()>{
         fs::create_dir_all(&self.dir)?;
         let path = format!("{}/{}.csv", self.dir, self.raw_name);
-        fs::write(path, merge_tables(text, (1, 2))?)?;
+        let contents = merge_tables(text, (1, 2))?;
+        // display_analysis(&contents);
+        // fs::write(path, contents)?;
+        println!("Servo: {}", self.name);
+        serialize_servo(&contents);
 
         Ok(())
     }
