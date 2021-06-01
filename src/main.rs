@@ -4,7 +4,7 @@ mod serialize;
 
 use analysis::display_analysis;
 use anyhow::Result;
-use clap::{App, Arg, SubCommand};
+use clap::{App, Arg, ArgGroup, SubCommand};
 use download::merge_tables;
 use futures_util::stream::StreamExt;
 use serde_yaml::Value;
@@ -55,8 +55,18 @@ async fn main() -> Result<()> {
                             .short("d")
                             .long("dxl")
                             .value_name("SERVO")
-                            .help("Specifies which files to download. If no files are specified, all will be downloaded")
+                            .help("Specifies which files to download.")
                             .takes_value(true)
+                            .multiple(true))
+                        .arg(Arg::with_name("series")
+                            .short("s")
+                            .long("series")
+                            .value_name("SERIES")
+                            .help("Specifies which series of Dynamixel to download.")
+                            .takes_value(true)
+                            .multiple(true))
+                        .group(ArgGroup::with_name("servo_choice")
+                            .args(&["dynamixel", "series"])
                             .multiple(true))
                         .arg(Arg::with_name("navigation_url")
                             .long("navigation_url")
@@ -70,8 +80,13 @@ async fn main() -> Result<()> {
     let yaml = reqwest::get(matches.value_of("navigation_url").unwrap()).await?;
     let navigation: Value = serde_yaml::from_str(&yaml.text().await?)?;
     let dropdown_elements = &navigation["main"][0]["children"];
+
     let dxls: Option<Vec<&str>> = match matches.is_present("dynamixel") {
         true => Some(matches.values_of("dynamixel").unwrap().collect()),
+        false => None,
+    };
+    let series: Option<Vec<&str>> = match matches.is_present("series") {
+        true => Some(matches.values_of("series").unwrap().collect()),
         false => None,
     };
 
@@ -91,9 +106,18 @@ async fn main() -> Result<()> {
                 let name = child["title"].as_str().unwrap().to_string();
                 let dxl = Actuator::new(url, name, title.clone())?;
 
-                if let Some(ref params) = dxls {
-                    if params.contains(&&*dxl.raw_name) {
-                        actuators.push(dxl);
+                if matches.is_present("servo_choice") {
+                    if let Some(ref params) = dxls {
+                        if params.contains(&&*dxl.raw_name) {
+                            actuators.push(dxl);
+                            continue;
+                        }
+                    }
+
+                    if let Some(ref params) = series {
+                        if params.contains(&title.split(' ').next().unwrap()) {
+                           actuators.push(dxl)
+                       }
                     }
                 } else {
                     actuators.push(dxl);
