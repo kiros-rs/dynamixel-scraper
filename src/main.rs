@@ -12,10 +12,6 @@ use serialize::serialize_servo;
 use std::fs;
 use tokio_stream as stream;
 
-const NAVIGATION_URL: &str =
-    "https://raw.githubusercontent.com/ROBOTIS-GIT/emanual/master/_data/navigation.yml";
-const BASE_URL: &str = "https://emanual.robotis.com/docs/en";
-
 #[derive(Clone, Debug)]
 struct Actuator {
     url: String,
@@ -61,9 +57,17 @@ async fn main() -> Result<()> {
                             .value_name("SERVO")
                             .help("Specifies which files to download. If no files are specified, all will be downloaded")
                             .takes_value(true)
-                            .multiple(true)).get_matches();
+                            .multiple(true))
+                        .arg(Arg::with_name("navigation_url")
+                            .long("navigation_url")
+                            .default_value("https://raw.githubusercontent.com/ROBOTIS-GIT/emanual/master/_data/navigation.yml")
+                            .help("Specify the location of the navigation URL used to locate Dynamixels"))
+                        .arg(Arg::with_name("base_url")
+                            .long("base_url")
+                            .default_value("https://emanual.robotis.com/docs/en")
+                            .help("Specify the base URL to use")).get_matches();
 
-    let yaml = reqwest::get(NAVIGATION_URL).await?;
+    let yaml = reqwest::get(matches.value_of("navigation_url").unwrap()).await?;
     let navigation: Value = serde_yaml::from_str(&yaml.text().await?)?;
     let dropdown_elements = &navigation["main"][0]["children"];
     let dxls: Option<Vec<&str>> = match matches.is_present("dynamixel") {
@@ -83,7 +87,7 @@ async fn main() -> Result<()> {
         if title.contains("Series") {
             let children = element["children"].as_sequence().unwrap();
             for child in children {
-                let url = format!("{}{}", BASE_URL, child["url"].as_str().unwrap());
+                let url = format!("{}{}", matches.value_of("base_url").unwrap(), child["url"].as_str().unwrap());
                 let name = child["title"].as_str().unwrap().to_string();
                 let dxl = Actuator::new(url, name, title.clone())?;
 
