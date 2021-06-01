@@ -19,3 +19,4 @@ anyhow = "1.0.40"
 prettytable-rs = "0.8.0"
 movement = { git = "https://github.com/kiros-rs/kiros.git", branch = "control-table" }
 regex = "1.5.4"
+clap = "2.33.3"

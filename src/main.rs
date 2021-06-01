@@ -4,6 +4,7 @@ mod serialize;
 
 use analysis::display_analysis;
 use anyhow::Result;
+use clap::{App, Arg, SubCommand};
 use download::merge_tables;
 use futures_util::stream::StreamExt;
 use serde_yaml::Value;
@@ -50,9 +51,25 @@ impl Actuator {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let matches = App::new("Dynamixel Control Table Scraper")
+                        .version("0.1")
+                        .author("Angus Finch <developer.finchie@gmail.com>")
+                        .about("Scrapes the Robotis E-Manual for Dynamixel control tables")
+                        .arg(Arg::with_name("dynamixel")
+                            .short("d")
+                            .long("dxl")
+                            .value_name("SERVO")
+                            .help("Specifies which files to download. If no files are specified, all will be downloaded")
+                            .takes_value(true)
+                            .multiple(true)).get_matches();
+
     let yaml = reqwest::get(NAVIGATION_URL).await?;
     let navigation: Value = serde_yaml::from_str(&yaml.text().await?)?;
     let dropdown_elements = &navigation["main"][0]["children"];
+    let dxls: Option<Vec<&str>> = match matches.is_present("dynamixel") {
+        true => Some(matches.values_of("dynamixel").unwrap().collect()),
+        false => None,
+    };
 
     let mut actuators: Vec<Actuator> = Vec::new();
 
@@ -69,7 +86,14 @@ async fn main() -> Result<()> {
                 let url = format!("{}{}", BASE_URL, child["url"].as_str().unwrap());
                 let name = child["title"].as_str().unwrap().to_string();
                 let dxl = Actuator::new(url, name, title.clone())?;
-                actuators.push(dxl);
+
+                if let Some(ref params) = dxls {
+                    if params.contains(&&*dxl.raw_name) {
+                        actuators.push(dxl);
+                    }
+                } else {
+                    actuators.push(dxl);
+                }
             }
         }
     }
