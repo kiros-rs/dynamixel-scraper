@@ -1,14 +1,18 @@
-use regex::Regex;
-use std::collections::HashMap;
-use serde_yaml;
-use movement::dynamixel::{AccessLevel, ControlTableData};
 use anyhow::Result;
+use movement::dynamixel::{AccessLevel, ControlTableData};
+use regex::Regex;
+use serde_yaml;
+use std::collections::HashMap;
 
-fn try_find(indexes: &HashMap<&str, usize>, line: &Vec<Option<&str>>, heading: &str) -> Option<String> {
+fn try_find(
+    indexes: &HashMap<&str, usize>,
+    line: &Vec<Option<&str>>,
+    heading: &str,
+) -> Option<String> {
     if indexes.contains_key(&heading) {
         let item = line[indexes[heading]];
         if item.is_some() {
-            return Some(item.unwrap().to_string())
+            return Some(item.unwrap().to_string());
         }
     }
 
@@ -47,7 +51,7 @@ pub fn serialize_servo(servo: &str) -> Result<String> {
                     println!("Discarded {:?}", current_match);
                     continue;
                 }
-            
+
                 let current_value = current_match.parse::<u64>()?;
 
                 if lowest_address.unwrap_or(u64::MAX) > current_value {
@@ -63,7 +67,7 @@ pub fn serialize_servo(servo: &str) -> Result<String> {
 
     println!("Highest: {}", highest_address.unwrap_or(0));
     println!("Lowest: {}", lowest_address.unwrap_or(0));
-    
+
     let headings: Vec<&str> = servo.lines().next().unwrap().split(", ").collect();
     let mut indexes: HashMap<&str, usize> = HashMap::new();
     for (idx, heading) in headings.iter().enumerate() {
@@ -74,8 +78,12 @@ pub fn serialize_servo(servo: &str) -> Result<String> {
     for line in lines {
         // println!("{:?} {}", line, *indexes.get("Address").unwrap());
         data.push(ControlTableData {
-            address: line[*indexes.get("Address").unwrap()].unwrap().parse::<u64>()?,
-            size: line[*indexes.get("Size(byte)").unwrap()].unwrap().parse::<u64>()?, // NOTE: There should be a space inserted in front of applicable headings such as "Size(Byte)"
+            address: line[*indexes.get("Address").unwrap()]
+                .unwrap()
+                .parse::<u64>()?,
+            size: line[*indexes.get("Size(byte)").unwrap()]
+                .unwrap()
+                .parse::<u64>()?, // NOTE: There should be a space inserted in front of applicable headings such as "Size(Byte)"
             data_name: try_find(&indexes, &line, "Data Name"),
             description: try_find(&indexes, &line, "Description"),
             access: match line[*indexes.get("Access").unwrap()].unwrap() {
@@ -90,7 +98,6 @@ pub fn serialize_servo(servo: &str) -> Result<String> {
             range: None,
             units: None,
             modbus: None,
-
         });
     }
 

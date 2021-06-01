@@ -1,6 +1,6 @@
+use anyhow::Result;
 use convert_case::{Case, Casing};
 use scraper::{ElementRef, Html, Selector};
-use anyhow::Result;
 
 fn parse_table(table: ElementRef) -> Result<String> {
     let mut csv = String::new();

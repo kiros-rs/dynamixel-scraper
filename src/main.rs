@@ -2,14 +2,14 @@ mod analysis;
 mod download;
 mod serialize;
 
-use anyhow::Result;
 use analysis::display_analysis;
+use anyhow::Result;
 use download::merge_tables;
 use futures_util::stream::StreamExt;
-use tokio_stream as stream;
-use std::fs;
 use serde_yaml::Value;
 use serialize::serialize_servo;
+use std::fs;
+use tokio_stream as stream;
 
 const NAVIGATION_URL: &str =
     "https://raw.githubusercontent.com/ROBOTIS-GIT/emanual/master/_data/navigation.yml";
@@ -35,7 +35,7 @@ impl Actuator {
         })
     }
 
-    fn write_table(&self, text: &str) -> Result<()>{
+    fn write_table(&self, text: &str) -> Result<()> {
         fs::create_dir_all(&self.dir)?;
         let path = format!("{}/{}.csv", self.dir, self.raw_name);
         let contents = merge_tables(text, (1, 2))?;

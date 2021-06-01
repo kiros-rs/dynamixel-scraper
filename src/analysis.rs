@@ -1,9 +1,7 @@
-use prettytable::{Table, Row, Cell};
+use prettytable::{Cell, Row, Table};
 use std::collections::HashMap;
 
-pub struct FileAnalysis {
-
-}
+pub struct FileAnalysis {}
 
 pub struct GroupAnalysis {
     pub files_analysed: HashMap<String, FileAnalysis>,
