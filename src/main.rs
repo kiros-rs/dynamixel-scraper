@@ -129,7 +129,11 @@ async fn main() -> Result<()> {
         if title.contains("Series") {
             let children = element["children"].as_sequence().unwrap();
             for child in children {
-                let url = format!("{}{}", matches.value_of("base_url").unwrap(), child["url"].as_str().unwrap());
+                let url = format!(
+                    "{}{}",
+                    matches.value_of("base_url").unwrap(),
+                    child["url"].as_str().unwrap()
+                );
                 let name = child["title"].as_str().unwrap().to_string();
                 let dxl = Actuator::new(url, name, title.clone())?;
 
@@ -143,8 +147,8 @@ async fn main() -> Result<()> {
 
                     if let Some(ref params) = series {
                         if params.contains(&title.split(' ').next().unwrap()) {
-                           actuators.push(dxl)
-                       }
+                            actuators.push(dxl)
+                        }
                     }
                 } else {
                     actuators.push(dxl);
@@ -163,14 +167,14 @@ async fn main() -> Result<()> {
             .iter()
             .position(|x| x.url == response.url().as_str())
             .unwrap();
-        
+
         actuators[index].text = response.text().await?;
 
         if matches.is_present("format") {
             if matches.is_present("csv") {
                 actuators[index].write_table()?;
             }
-            
+
             if matches.is_present("ron") {
                 actuators[index].write_object()?;
             }

@@ -44,11 +44,9 @@ pub fn serialize_servo(servo: &str) -> Result<String> {
             if caps.is_none() {
                 lines.push(line_to_add);
             } else {
-                // println!("Captured line: {:?}", line_to_add);
                 let caps = caps.unwrap();
                 let current_match = caps.get(caps.len() - 1).unwrap().as_str();
                 if !current_match.chars().all(char::is_numeric) {
-                    // println!("Discarded {:?}", current_match);
                     continue;
                 }
 
@@ -65,9 +63,6 @@ pub fn serialize_servo(servo: &str) -> Result<String> {
         }
     }
 
-    // println!("Highest: {}", highest_address.unwrap_or(0));
-    // println!("Lowest: {}", lowest_address.unwrap_or(0));
-
     let headings: Vec<&str> = servo.lines().next().unwrap().split(", ").collect();
     let mut indexes: HashMap<&str, usize> = HashMap::new();
     for (idx, heading) in headings.iter().enumerate() {
@@ -76,7 +71,6 @@ pub fn serialize_servo(servo: &str) -> Result<String> {
 
     let mut data: Vec<ControlTableData<u64>> = Vec::new();
     for line in lines {
-        // println!("{:?} {}", line, *indexes.get("Address").unwrap());
         data.push(ControlTableData {
             address: line[*indexes.get("Address").unwrap()]
                 .unwrap()
@@ -101,14 +95,10 @@ pub fn serialize_servo(servo: &str) -> Result<String> {
         });
     }
 
-    // for line in data {
-    //     println!("{:?}", line);
-    // }
-
     let pretty = PrettyConfig::new()
         .with_separate_tuple_members(true)
         .with_enumerate_arrays(true);
     let s = to_string_pretty(&data, pretty)?;
-    // let s = to_string(&data)?;
+
     Ok(s)
 }
