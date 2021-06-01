@@ -9,6 +9,7 @@ use futures_util::stream::StreamExt;
 use serde_yaml::Value;
 use serialize::serialize_servo;
 use std::fs;
+use threadpool::ThreadPool;
 use tokio_stream as stream;
 
 #[derive(Clone, Debug)]
@@ -162,26 +163,37 @@ async fn main() -> Result<()> {
         .map(|dxl| client.get(&dxl.url).send())
         .buffer_unordered(20);
 
+    let pool = ThreadPool::new(actuators.len());
     while let Some(Ok(response)) = stream.next().await {
         let index = actuators
             .iter()
             .position(|x| x.url == response.url().as_str())
             .unwrap();
+        let mut dxl = actuators[index].clone();
+        dxl.text = response.text().await.unwrap();
+    
+        let format = matches.is_present("format");
+        let csv = matches.is_present("csv");
+        let ron = matches.is_present("ron");
 
-        actuators[index].text = response.text().await?;
-
-        if matches.is_present("format") {
-            if matches.is_present("csv") {
-                actuators[index].write_table()?;
+        pool.execute(move || {
+            if format {
+                if csv {
+                    &dxl.write_table().unwrap();
+                }
+    
+                if ron {
+                    &dxl.write_object().unwrap();
+                }
+            } else {
+                &dxl.write_table().unwrap();
+                &dxl.write_object().unwrap();
             }
+        });
+    }
 
-            if matches.is_present("ron") {
-                actuators[index].write_object()?;
-            }
-        } else {
-            actuators[index].write_table()?;
-            actuators[index].write_object()?;
-        }
+    while pool.queued_count() > 0 {
+        //
     }
 
     Ok(())

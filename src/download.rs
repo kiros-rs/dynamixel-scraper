@@ -4,26 +4,22 @@ use scraper::{ElementRef, Html, Selector};
 
 fn parse_table(table: ElementRef) -> Result<String> {
     let mut csv = String::new();
+    let sel = Selector::parse("tr>*").unwrap();
+    let elements = table.select(&sel);
 
-    let heading_selector = Selector::parse("thead>tr>th").unwrap();
-    let body_selector = Selector::parse("tbody>tr>td").unwrap();
-
-    let headings: Vec<_> = table.select(&heading_selector).collect();
-    let mut num_headings = 0;
+    let (headings, body): (Vec<ElementRef>, Vec<ElementRef>) = elements.partition(|x| x.value().name() == "th");
     let mut items_in_line = 0;
 
-    for item in headings {
+    for item in &headings {
         let text = String::from(item.text().collect::<String>());
         if csv.len() > 0 {
             csv.push_str(", ");
         }
 
         csv.push_str(&text.to_case(Case::Title));
-        num_headings += 1;
     }
 
     csv.push('\n');
-    let body = table.select(&body_selector);
 
     for element in body {
         let mut line = String::new();
@@ -45,7 +41,7 @@ fn parse_table(table: ElementRef) -> Result<String> {
         line.push_str(&text);
         items_in_line += 1;
 
-        if items_in_line == num_headings {
+        if items_in_line == headings.len() {
             line.push('\n');
             items_in_line = 0;
         }
