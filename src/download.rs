@@ -7,7 +7,8 @@ fn parse_table(table: ElementRef) -> Result<String> {
     let sel = Selector::parse("tr>*").unwrap();
     let elements = table.select(&sel);
 
-    let (headings, body): (Vec<ElementRef>, Vec<ElementRef>) = elements.partition(|x| x.value().name() == "th");
+    let (headings, body): (Vec<ElementRef>, Vec<ElementRef>) =
+        elements.partition(|x| x.value().name() == "th");
     let mut items_in_line = 0;
 
     for item in &headings {

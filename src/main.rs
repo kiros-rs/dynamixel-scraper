@@ -171,7 +171,7 @@ async fn main() -> Result<()> {
             .unwrap();
         let mut dxl = actuators[index].clone();
         dxl.text = response.text().await.unwrap();
-    
+
         let format = matches.is_present("format");
         let csv = matches.is_present("csv");
         let ron = matches.is_present("ron");
@@ -181,7 +181,7 @@ async fn main() -> Result<()> {
                 if csv {
                     &dxl.write_table().unwrap();
                 }
-    
+
                 if ron {
                     &dxl.write_object().unwrap();
                 }

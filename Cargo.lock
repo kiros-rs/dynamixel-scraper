@@ -165,7 +165,7 @@ dependencies = [
 [[package]]
 name = "connection"
 version = "0.1.0"
-source = "git+https://github.com/kiros-rs/kiros.git?branch=control-table#97eb813a3666218ab750b981a9493451f1f37574"
+source = "git+https://github.com/kiros-rs/kiros.git?branch=control-table#c24a28c7fc1d35d50e7fa6fc54d90331ea0062f4"
 dependencies = [
  "serialport 4.0.2-alpha.0",
 ]
@@ -824,7 +824,7 @@ dependencies = [
 [[package]]
 name = "movement"
 version = "0.1.0"
-source = "git+https://github.com/kiros-rs/kiros.git?branch=control-table#97eb813a3666218ab750b981a9493451f1f37574"
+source = "git+https://github.com/kiros-rs/kiros.git?branch=control-table#c24a28c7fc1d35d50e7fa6fc54d90331ea0062f4"
 dependencies = [
  "byteorder",
  "connection",
@@ -1419,7 +1419,7 @@ dependencies = [
 [[package]]
 name = "sensor"
 version = "0.1.0"
-source = "git+https://github.com/kiros-rs/kiros.git?branch=control-table#97eb813a3666218ab750b981a9493451f1f37574"
+source = "git+https://github.com/kiros-rs/kiros.git?branch=control-table#c24a28c7fc1d35d50e7fa6fc54d90331ea0062f4"
 dependencies = [
  "serde",
 ]

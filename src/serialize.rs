@@ -1,5 +1,5 @@
 use anyhow::Result;
-use movement::dynamixel::{AccessLevel, ControlTableData};
+use movement::dynamixel::{AccessLevel, ControlTableData, DynamixelAddress};
 use regex::Regex;
 use ron::ser::{to_string_pretty, PrettyConfig};
 use std::collections::HashMap;
@@ -72,9 +72,10 @@ pub fn serialize_servo(servo: &str) -> Result<String> {
     let mut data: Vec<ControlTableData<u64>> = Vec::new();
     for line in lines {
         data.push(ControlTableData {
-            address: line[*indexes.get("Address").unwrap()]
-                .unwrap()
-                .parse::<u64>()?,
+            address: match try_find(&indexes, &line, "Address") {
+                Some(val) => DynamixelAddress::Standard(val.parse::<u64>()?),
+                None => DynamixelAddress::Modbus(0),
+            },
             size: line[*indexes.get("Size(byte)").unwrap()]
                 .unwrap()
                 .parse::<u64>()?, // NOTE: There should be a space inserted in front of applicable headings such as "Size(Byte)"
