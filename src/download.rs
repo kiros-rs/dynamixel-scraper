@@ -12,8 +12,8 @@ fn parse_table(table: ElementRef) -> Result<String> {
     let mut items_in_line = 0;
 
     for item in &headings {
-        let text = String::from(item.text().collect::<String>());
-        if csv.len() > 0 {
+        let text = item.text().collect::<String>();
+        if !csv.is_empty() {
             csv.push_str(", ");
         }
 

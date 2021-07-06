@@ -1,66 +1,54 @@
-mod analysis;
-mod download;
-mod serialize;
+pub mod analysis;
+pub mod download;
+pub mod serialize;
 
 use anyhow::Result;
 use clap::{App, Arg, ArgGroup};
 use download::merge_tables;
 use futures_util::stream::StreamExt;
 use serde_yaml::Value;
-use serialize::serialize_servo;
+use serialize::{parse_servo, serialize_servo, ControlTableData};
 use std::fs;
-use threadpool::ThreadPool;
 use tokio_stream as stream;
 
 #[derive(Clone, Debug)]
 struct Actuator {
-    url: String,
     series: String,
     raw_name: String,
     name: String,
-    contents: Option<String>,
-    pub text: String,
+    data: Vec<ControlTableData>,
 }
 
 impl Actuator {
-    fn new(url: String, name: String, series: String) -> Result<Actuator> {
-        let raw_name = url.split('/').nth_back(1).unwrap();
+    pub fn new(url: String, name: String, text: String) -> Result<Actuator> {
+        // Example URL: https://emanual.robotis.com/docs/en/dxl/ax/ax-12a/
+        // Raw name: ax-12a
+        // Series: ax
+        let mut url_parts = url.split('/');
+        let raw_name = url_parts.nth_back(1).unwrap();
+        let series = url_parts.next_back().unwrap();
 
         Ok(Actuator {
-            url: url.clone(),
-            series: series.split_whitespace().next().unwrap().to_string(),
+            series: series.to_string(),
             raw_name: raw_name.to_string(),
             name,
-            contents: None,
-            text: String::new(),
+            data: parse_servo(&merge_tables(&text, (1, 2))?)?,
         })
     }
 
-    fn get_contents(&mut self) -> Result<String> {
-        if let Some(contents) = &self.contents {
-            Ok(contents.to_string())
-        } else {
-            self.contents = Some(merge_tables(&self.text, (1, 2))?);
-
-            Ok(self.contents.clone().unwrap())
-        }
-    }
-
-    fn write_table(&mut self) -> Result<()> {
-        fs::create_dir_all(format!("tables/{}", &self.series))?;
-        let path = format!("tables/{}/{}.csv", &self.series, &self.raw_name);
-        fs::write(path, self.get_contents()?)?;
-
-        Ok(())
-    }
-
-    fn write_object(&mut self) -> Result<()> {
+    pub fn write_object(&mut self) -> Result<()> {
         fs::create_dir_all(format!("objects/{}", &self.series))?;
         let path = format!("objects/{}/{}.ron", &self.series, &self.raw_name);
-        fs::write(path, serialize_servo(&self.get_contents()?)?)?;
+        fs::write(path, serialize_servo(&self.data)?)?;
 
         Ok(())
     }
+}
+
+#[derive(Debug)]
+struct ActuatorIndex {
+    pub url: String,
+    pub name: String,
 }
 
 #[tokio::main]
@@ -69,16 +57,12 @@ async fn main() -> Result<()> {
                         .version("0.1")
                         .author("Angus Finch <developer.finchie@gmail.com>")
                         .about("Scrapes the Robotis E-Manual for Dynamixel control tables")
-                        .arg(Arg::with_name("csv")
-                            .long("csv")
-                            .takes_value(false)
-                            .help("If the control table should be output in CSV notation"))
                         .arg(Arg::with_name("ron")
                             .long("ron")
                             .takes_value(false)
                             .help("If the control table should be output in RON"))
                         .group(ArgGroup::with_name("format")
-                            .args(&["csv", "ron"]))
+                            .args(&["ron"]))
                         .arg(Arg::with_name("dynamixel")
                             .short("d")
                             .long("dxl")
@@ -109,16 +93,16 @@ async fn main() -> Result<()> {
     let navigation: Value = serde_yaml::from_str(&yaml.text().await?)?;
     let dropdown_elements = &navigation["main"][0]["children"];
 
-    let dxls: Option<Vec<&str>> = match matches.is_present("dynamixel") {
-        true => Some(matches.values_of("dynamixel").unwrap().collect()),
-        false => None,
+    let dxls: Vec<&str> = match matches.is_present("dynamixel") {
+        true => matches.values_of("dynamixel").unwrap().collect(),
+        false => vec![],
     };
-    let series: Option<Vec<&str>> = match matches.is_present("series") {
-        true => Some(matches.values_of("series").unwrap().collect()),
-        false => None,
+    let series: Vec<&str> = match matches.is_present("series") {
+        true => matches.values_of("series").unwrap().collect(),
+        false => vec![],
     };
 
-    let mut actuators: Vec<Actuator> = Vec::new();
+    let mut indexes: Vec<ActuatorIndex> = Vec::new();
 
     for element in dropdown_elements.as_sequence().unwrap() {
         let title: String = element["title"]
@@ -136,65 +120,41 @@ async fn main() -> Result<()> {
                     child["url"].as_str().unwrap()
                 );
                 let name = child["title"].as_str().unwrap().to_string();
-                let dxl = Actuator::new(url, name, title.clone())?;
+                let dxl = ActuatorIndex { url, name };
 
                 if matches.is_present("servo_choice") {
-                    if let Some(ref params) = dxls {
-                        if params.contains(&&*dxl.raw_name) {
-                            actuators.push(dxl);
-                            continue;
-                        }
+                    if dxls.contains(&dxl.url.split('/').nth_back(1).unwrap()) {
+                        indexes.push(dxl);
+                        continue;
                     }
 
-                    if let Some(ref params) = series {
-                        if params.contains(&title.split(' ').next().unwrap()) {
-                            actuators.push(dxl)
-                        }
+                    if series.contains(&title.split(' ').next().unwrap()) {
+                        indexes.push(dxl)
                     }
                 } else {
-                    actuators.push(dxl);
+                    indexes.push(dxl);
                 }
             }
         }
     }
 
-    let client = reqwest::Client::new();
-    let mut stream = stream::iter(actuators.clone())
-        .map(|dxl| client.get(&dxl.url).send())
-        .buffer_unordered(20);
+    // Thanks to http://patshaughnessy.net/2020/1/20/downloading-100000-files-using-async-rust
+    let fetches = stream::iter(indexes)
+        .map(|dxl| {
+            tokio::spawn(async move {
+                let req = reqwest::get(&dxl.url).await.unwrap();
+                let text = req.text().await.unwrap();
+                Actuator::new(dxl.url, dxl.name, text).unwrap()
+            })
+        })
+        .buffer_unordered(20)
+        .collect::<Vec<_>>()
+        .await;
 
-    let pool = ThreadPool::new(actuators.len());
-    while let Some(Ok(response)) = stream.next().await {
-        let index = actuators
-            .iter()
-            .position(|x| x.url == response.url().as_str())
-            .unwrap();
-        let mut dxl = actuators[index].clone();
-        dxl.text = response.text().await.unwrap();
-
-        let format = matches.is_present("format");
-        let csv = matches.is_present("csv");
-        let ron = matches.is_present("ron");
-
-        pool.execute(move || {
-            if format {
-                if csv {
-                    &dxl.write_table().unwrap();
-                }
-
-                if ron {
-                    &dxl.write_object().unwrap();
-                }
-            } else {
-                &dxl.write_table().unwrap();
-                &dxl.write_object().unwrap();
-            }
-        });
-    }
-
-    while pool.queued_count() > 0 {
-        //
-    }
+    let actuators: Vec<Actuator> = fetches.into_iter().map(|dxl| dxl.unwrap()).collect();
+    // for dxl in actuators {
+    //     println!("{}", dxl.name);
+    // }
 
     Ok(())
 }
