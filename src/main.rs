@@ -8,10 +8,17 @@ use anyhow::Result;
 use clap::{App, Arg, ArgGroup};
 use download::merge_tables;
 use futures_util::stream::StreamExt;
+use indicatif::{ProgressBar, ProgressStyle};
 use serde_yaml::Value;
 use serialize::{parse_servo, serialize_servo, ControlTableData};
 use std::fs;
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc,
+};
 use tokio_stream as stream;
+
+static TICK_RATE: u64 = 50;
 
 #[derive(Clone, Debug)]
 pub struct Actuator {
@@ -51,6 +58,21 @@ impl Actuator {
 struct ActuatorIndex {
     pub url: String,
     pub name: String,
+}
+
+fn configure_spinner(spinner: &ProgressBar) {
+    let style = ProgressStyle::default_spinner()
+        .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ")
+        .template("{spinner:.green} [{elapsed_precise}] {msg:.cyan.bold}");
+    spinner.set_style(style);
+    spinner.enable_steady_tick(TICK_RATE);
+}
+
+fn configure_dxl_spinner(spinner: &ProgressBar) {
+    let style = ProgressStyle::default_spinner()
+        .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ")
+        .template("{prefix:.magenta.bold} {msg:.green}");
+    spinner.set_style(style);
 }
 
 #[tokio::main]
@@ -95,7 +117,13 @@ async fn main() -> Result<()> {
                             .default_value("https://emanual.robotis.com/docs/en")
                             .help("Specify the base URL to use")).get_matches();
 
+    let nav_download = ProgressBar::new_spinner().with_message("Fetching navigation index");
+    configure_spinner(&nav_download);
     let yaml = reqwest::get(matches.value_of("navigation_url").unwrap()).await?;
+    nav_download.finish();
+
+    let yaml_parse = ProgressBar::new_spinner().with_message("Parsing YAML");
+    configure_spinner(&yaml_parse);
     let navigation: Value = serde_yaml::from_str(&yaml.text().await?)?;
     let dropdown_elements = &navigation["main"][0]["children"];
 
@@ -144,19 +172,42 @@ async fn main() -> Result<()> {
         }
     }
 
+    yaml_parse.finish();
+
+    let counter: Arc<AtomicUsize> = Arc::new(AtomicUsize::new(0));
+    let total = Arc::new(indexes.len());
+    let fetch_progress =
+        ProgressBar::new_spinner().with_message("Downloading & extracting Dynamixels");
+    configure_spinner(&fetch_progress);
+    fetch_progress.disable_steady_tick();
+
     // Thanks to http://patshaughnessy.net/2020/1/20/downloading-100000-files-using-async-rust
     let fetches = stream::iter(indexes)
         .map(|dxl| {
+            let spinner = Arc::new(ProgressBar::new_spinner().with_message(dxl.name.clone()));
+            configure_dxl_spinner(&spinner);
+
+            counter.store(counter.load(Ordering::Relaxed) + 1, Ordering::Relaxed);
+            spinner.set_prefix(format!("{:?}/{}", counter, total));
+
             tokio::spawn(async move {
                 let req = reqwest::get(&dxl.url).await.unwrap();
                 let text = req.text().await.unwrap();
-                Actuator::new(dxl.url, dxl.name, text).unwrap()
+                let actuator = Actuator::new(dxl.url, dxl.name, text).unwrap();
+                spinner.finish_and_clear();
+
+                actuator
             })
         })
         .buffer_unordered(20)
         .collect::<Vec<_>>()
         .await;
 
+    fetch_progress.tick();
+    fetch_progress.finish();
+
+    let data_write = ProgressBar::new_spinner().with_message("Writing data");
+    configure_spinner(&data_write);
     let actuators: Vec<Actuator> = fetches.into_iter().map(|dxl| dxl.unwrap()).collect();
     if matches.is_present("format") {
         if matches.is_present("lib") {
@@ -171,6 +222,8 @@ async fn main() -> Result<()> {
     } else {
         create_lib::create_lib(&actuators)?;
     }
+
+    data_write.finish();
 
     Ok(())
 }
