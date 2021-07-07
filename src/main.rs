@@ -1,3 +1,5 @@
+mod create_lib;
+
 pub mod analysis;
 pub mod download;
 pub mod serialize;
@@ -12,7 +14,7 @@ use std::fs;
 use tokio_stream as stream;
 
 #[derive(Clone, Debug)]
-struct Actuator {
+pub struct Actuator {
     series: String,
     raw_name: String,
     name: String,
@@ -57,12 +59,16 @@ async fn main() -> Result<()> {
                         .version("0.1")
                         .author("Angus Finch <developer.finchie@gmail.com>")
                         .about("Scrapes the Robotis E-Manual for Dynamixel control tables")
+                        .arg(Arg::with_name("lib")
+                            .long("lib")
+                            .takes_value(false)
+                            .help("If the control table should be output as a Rust library"))
                         .arg(Arg::with_name("ron")
                             .long("ron")
                             .takes_value(false)
                             .help("If the control table should be output in RON"))
                         .group(ArgGroup::with_name("format")
-                            .args(&["ron"]))
+                            .args(&["lib", "ron"]))
                         .arg(Arg::with_name("dynamixel")
                             .short("d")
                             .long("dxl")
@@ -152,9 +158,19 @@ async fn main() -> Result<()> {
         .await;
 
     let actuators: Vec<Actuator> = fetches.into_iter().map(|dxl| dxl.unwrap()).collect();
-    // for dxl in actuators {
-    //     println!("{}", dxl.name);
-    // }
+    if matches.is_present("format") {
+        if matches.is_present("lib") {
+            create_lib::create_lib(&actuators)?;
+        }
+
+        if matches.is_present("ron") {
+            for mut dxl in actuators {
+                dxl.write_object()?;
+            }
+        }
+    } else {
+        create_lib::create_lib(&actuators)?;
+    }
 
     Ok(())
 }
