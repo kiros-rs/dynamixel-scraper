@@ -6,7 +6,7 @@ use std::io::Write;
 use std::iter::FromIterator;
 
 static CARGO_PREAMBLE: &str = "[package]
-name = \"control-tables\"
+name = \"dxl-control-tables\"
 version = \"0.1.0\"
 edition = \"2018\"
 
@@ -18,7 +18,7 @@ thiserror = \"1.0.26\"
 static ERROR_DEFINITION: &str = "use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum AddressError {
+pub enum ControlTableError {
     #[error(\"Dynamixel model {model:?} does not support field {name:?}\")]
     NoMatchingAddress { model: Model, name: DataName },
 }
@@ -108,7 +108,7 @@ pub fn create_lib(servos: &[Actuator]) -> Result<()> {
     lib.push_str("}\n");
 
     lib.push_str(
-        "\npub const fn address(model: Model, name: DataName) -> Result<u16, AddressError> {",
+        "\npub const fn address(model: Model, name: DataName) -> Result<u16, ControlTableError> {",
     );
     lib.push_str(&format!("\n{}match model {{", INDENT));
 
@@ -141,7 +141,7 @@ pub fn create_lib(servos: &[Actuator]) -> Result<()> {
 
             // Add error handling
             lib.push_str(&format!(
-                "\n{}_ => Err(AddressError::NoMatchingAddress {{ model, name }}),",
+                "\n{}_ => Err(ControlTableError::NoMatchingAddress {{ model, name }}),",
                 INDENT.repeat(3)
             ));
             lib.push_str(&format!("\n{}}},", INDENT.repeat(2)))
