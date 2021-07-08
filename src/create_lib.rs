@@ -54,7 +54,7 @@ pub struct ControlTableData {
 }
 
 ";
-static DERIVES: &str = "#[derive(Debug)]";
+static DERIVES: &str = "#[derive(Clone, Copy, Debug)]";
 static INDENT: &str = "    ";
 
 /// Append RangeValue:: to any variants of the enum
