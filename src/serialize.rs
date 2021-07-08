@@ -2,7 +2,7 @@ use anyhow::Result;
 use regex::Regex;
 use ron::ser::{to_string_pretty, PrettyConfig};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt};
 
 fn try_find(
     indexes: &HashMap<&str, usize>,
@@ -47,6 +47,19 @@ pub struct ControlTableData {
 pub enum RangeValue {
     Integer(i32),
     Address { name: String, negative: bool },
+}
+
+impl fmt::Display for RangeValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Integer(i) => write!(f, "RangeValue::Integer({})", i),
+            Self::Address { name, negative } => write!(
+                f,
+                "RangeValue::Address {{ name: DataName::{}, negative: {}}}",
+                name, negative
+            ),
+        }
+    }
 }
 
 impl RangeValue {
