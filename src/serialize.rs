@@ -24,7 +24,6 @@ fn try_find(
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum AccessLevel {
     Read,
-    Write,
     ReadWrite,
 }
 
@@ -38,19 +37,66 @@ pub struct ControlTableData {
     pub data_name: Option<String>,
     pub description: Option<String>,
     pub access: AccessLevel,
-    pub initial_value: Option<String>,
-    pub range: Option<std::ops::Range<i64>>,
+    pub initial_value: Option<RangeValue>,
+    pub range: Option<(RangeValue, RangeValue)>,
     pub units: Option<String>,
     // pub modbus: Option<ModbusAddress>, // Need to understand this better before implementation
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub enum RangeValue {
+    Integer(i32),
+    Address { name: String, negative: bool },
+}
+
+impl RangeValue {
+    pub fn new(text: &str) -> Result<RangeValue> {
+        // Regex to capture the address-based range values (eg "AccelerationLimit40")
+        let address_re = Regex::new(r"^-?([a-zA-Z]+)[0-9]*$")?;
+        // Regex to capture the integer-based range values (eg 0)
+        let integer_re = Regex::new(r"^-?[0-9]+$")?;
+
+        let address_matches = address_re.captures(text);
+        let integer_matches = integer_re.captures(text);
+
+        // Make sure only one regex matches
+        assert!(address_matches.is_none() || integer_matches.is_none());
+        assert!(address_matches.is_some() || integer_matches.is_some());
+
+        if address_matches.is_some() {
+            if let Some(captures) = address_matches {
+                let mut captured_text = captures.get(0).unwrap().as_str().to_string();
+                // Some ranges can be negative, eg -PWMLimit ~ PWMLimit
+                let negative = captured_text.starts_with('-');
+                // Filter out any extra chars (should be just numbers) "PWMLimit36" -> PWMLimit
+                // This is done so that the names can be used with the DataName enum in the library (plus it looks better)
+                captured_text = captured_text
+                    .chars()
+                    .filter(|c| c.is_alphabetic())
+                    .collect();
+
+                return Ok(RangeValue::Address {
+                    name: captured_text,
+                    negative,
+                });
+            }
+        } else if let Some(captures) = integer_matches {
+                let num = captures.get(0).unwrap().as_str();
+                return Ok(RangeValue::Integer(num.parse::<i32>()?));
+        };
+
+        panic!("This should definitely not be possible");
+    }
 }
 
 pub fn parse_servo(servo: &str) -> Result<Vec<ControlTableData>> {
     let mut lines: Vec<Vec<Option<&str>>> = Vec::new();
     let bad_chars: Vec<char> = vec!['.', '-', ' ', '…', '~', '\u{a0}'];
 
-    let mut lowest_address: Option<u64> = None;
-    let mut highest_address: Option<u64> = None;
-    let re = Regex::new("Indirect (?:Address|Data) (N|[0-9]*)")?;
+    let mut lowest_address: Option<u32> = None;
+    let mut highest_address: Option<u32> = None;
+    // Regex to capture the data names that need extra processing
+    let indirect_re = Regex::new(r"Indirect (?:Address|Data) (?:N|[0-9]*)")?;
 
     for line in servo.lines().skip(1) {
         let cols = line.split(", ");
@@ -64,21 +110,19 @@ pub fn parse_servo(servo: &str) -> Result<Vec<ControlTableData>> {
         }
 
         if !line_to_add.iter().all(|o| o.is_none()) {
-            let caps = re.captures(line);
-
-            if let Some(captures) = caps {
+            if let Some(captures) = indirect_re.captures(line) {
                 let current_match = captures.get(captures.len() - 1).unwrap().as_str();
                 if !current_match.chars().all(char::is_numeric) {
                     continue;
                 }
 
-                let current_value = current_match.parse::<u64>()?;
+                let current_value = current_match.parse::<u32>()?;
 
-                if lowest_address.unwrap_or(u64::MAX) > current_value {
+                if lowest_address.unwrap_or(u32::MAX) > current_value {
                     lowest_address = Some(current_value);
                 }
 
-                if highest_address.unwrap_or(u64::MIN) < current_value {
+                if highest_address.unwrap_or(u32::MIN) < current_value {
                     highest_address = Some(current_value);
                 }
             } else {
@@ -95,6 +139,37 @@ pub fn parse_servo(servo: &str) -> Result<Vec<ControlTableData>> {
 
     let mut data: Vec<ControlTableData> = Vec::new();
     for line in lines {
+        let range: Option<(RangeValue, RangeValue)> =
+            if let Some(text) = try_find(&indexes, &line, "Range") {
+                if text.matches('~').count() == 1 {
+                    assert_eq!(text.matches('~').count(), 1);
+                    let mut text_parts = text.split('~').map(|s| {
+                        s.chars()
+                            .filter(|c| c.is_alphanumeric() || *c == '-')
+                            .collect::<String>()
+                    });
+
+                    let min = RangeValue::new(&text_parts.next().unwrap())?;
+                    let max = RangeValue::new(&text_parts.next().unwrap())?;
+
+                    Some((min, max))
+                } else {
+                    // Need to fix these edge cases
+                    None
+                }
+            } else if let Some(min_text) = try_find(&indexes, &line, "Min") {
+                if let Some(max_text) = try_find(&indexes, &line, "Max") {
+                    let min = RangeValue::new(&min_text)?;
+                    let max = RangeValue::new(&max_text)?;
+
+                    Some((min, max))
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
         data.push(ControlTableData {
             address: line[*indexes.get("Address").unwrap()]
                 .unwrap()
@@ -106,14 +181,17 @@ pub fn parse_servo(servo: &str) -> Result<Vec<ControlTableData>> {
             description: try_find(&indexes, &line, "Description"),
             access: match line[*indexes.get("Access").unwrap()].unwrap() {
                 "R" => AccessLevel::Read,
-                "W" => AccessLevel::Write,
                 "RW" => AccessLevel::ReadWrite,
                 "R/RW" => AccessLevel::ReadWrite, // Needs further research
                 e => panic!("Unknown level: {}", e),
             },
-            initial_value: try_find(&indexes, &line, "Initial Value"), // Needs more work
-            // These will need more research before implementation
-            range: None,
+            initial_value: match try_find(&indexes, &line, "Initial Value") {
+                Some(val) => Some(RangeValue::new(
+                    &val.chars().filter(|c| *c != ' ').collect::<String>(),
+                )?),
+                None => None,
+            },
+            range,
             units: None,
         });
     }

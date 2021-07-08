@@ -194,7 +194,7 @@ async fn main() -> Result<()> {
                 let req = reqwest::get(&dxl.url).await.unwrap();
                 let text = req.text().await.unwrap();
                 let actuator = Actuator::new(dxl.url, dxl.name, text).unwrap();
-                spinner.finish_and_clear();
+                spinner.finish();
 
                 actuator
             })
