@@ -44,7 +44,7 @@ impl Actuator {
             series: series.to_string(),
             raw_name: raw_name.to_string(),
             name,
-            data: parse_servo(&merge_tables(&text, (1, 2))?)?,
+            data: parse_servo(merge_tables(&text, (1, 2))?)?,
         })
     }
 

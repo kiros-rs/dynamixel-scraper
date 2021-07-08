@@ -2,9 +2,7 @@ use anyhow::Result;
 use convert_case::{Case, Casing};
 use scraper::{ElementRef, Html, Selector};
 
-fn parse_table(table: ElementRef) -> Result<String> {
-    let mut csv = String::new();
-
+fn parse_table(table: ElementRef) -> Result<Vec<Vec<String>>> {
     lazy_static! {
         static ref ROW_SELECTOR: Selector = Selector::parse("tr>*").unwrap();
     };
@@ -13,51 +11,31 @@ fn parse_table(table: ElementRef) -> Result<String> {
 
     let (headings, body): (Vec<ElementRef>, Vec<ElementRef>) =
         elements.partition(|x| x.value().name() == "th");
-    let mut items_in_line = 0;
 
+    let mut parsed_table: Vec<Vec<String>> = vec![vec![]];
     for item in &headings {
         let text = item.text().collect::<String>();
-        if !csv.is_empty() {
-            csv.push_str(", ");
-        }
-
-        csv.push_str(&text.to_case(Case::Title));
+        parsed_table[0].push(text.to_case(Case::Title));
     }
 
-    csv.push('\n');
-
     for element in body {
-        let mut line = String::new();
-        let text = element
-            .text()
-            .collect::<String>()
-            .chars()
-            .filter(|x| x != &',')
-            .collect::<String>();
+        let text = element.text().collect::<String>();
 
         if text.is_empty() {
             continue;
         }
 
-        if items_in_line > 0 {
-            line.push_str(", ");
+        if parsed_table.last().unwrap().len() == headings.len() {
+            parsed_table.push(vec![]);
         }
 
-        line.push_str(&text);
-        items_in_line += 1;
-
-        if items_in_line == headings.len() {
-            line.push('\n');
-            items_in_line = 0;
-        }
-
-        csv.push_str(&line);
+        parsed_table.last_mut().unwrap().push(text);
     }
 
-    Ok(csv)
+    Ok(parsed_table)
 }
 
-pub fn merge_tables(page: &str, indexes: (usize, usize)) -> Result<String> {
+pub fn merge_tables(page: &str, indexes: (usize, usize)) -> Result<Vec<Vec<String>>> {
     let document = Html::parse_document(page);
 
     lazy_static! {
@@ -70,8 +48,8 @@ pub fn merge_tables(page: &str, indexes: (usize, usize)) -> Result<String> {
     let ram = parse_table(ram_table)?;
 
     // Make sure the headings are equal before combining
-    assert_eq!(eeprom.lines().next(), ram.lines().next());
-    eeprom.push_str(&ram.lines().skip(1).collect::<Vec<_>>().join("\n"));
+    assert_eq!(eeprom[0], ram[0]);
+    eeprom.extend(ram.into_iter().skip(1));
 
     Ok(eeprom)
 }

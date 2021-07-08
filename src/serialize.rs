@@ -58,8 +58,10 @@ impl RangeValue {
             static ref INTEGER_RE: Regex = Regex::new(r"^-?[0-9]+$").unwrap();
         }
 
-        let address_matches = ADDRESS_RE.captures(text);
-        let integer_matches = INTEGER_RE.captures(text);
+        let filtered_text = text.chars().filter(|c| *c != ',').collect::<String>();
+
+        let address_matches = ADDRESS_RE.captures(&filtered_text);
+        let integer_matches = INTEGER_RE.captures(&filtered_text);
 
         // Make sure only one regex matches
         assert!(address_matches.is_none() || integer_matches.is_none());
@@ -91,19 +93,21 @@ impl RangeValue {
     }
 }
 
-pub fn parse_servo(servo: &str) -> Result<Vec<ControlTableData>> {
+pub fn parse_servo(servo: Vec<Vec<String>>) -> Result<Vec<ControlTableData>> {
     let mut lines: Vec<Vec<Option<&str>>> = Vec::new();
     let bad_chars: Vec<char> = vec!['.', '-', ' ', '…', '~', '\u{a0}'];
 
     let mut lowest_address: Option<u32> = None;
     let mut highest_address: Option<u32> = None;
     // Regex to capture the data names that need extra processing
-    let indirect_re = Regex::new(r"Indirect (?:Address|Data) (?:N|[0-9]*)")?;
+    lazy_static! {
+        static ref INDERECT_RE: Regex =
+            Regex::new(r"Indirect (?:Address|Data) (?:N|[0-9]*)").unwrap();
+    }
 
-    for line in servo.lines().skip(1) {
-        let cols = line.split(", ");
+    for line in servo.iter().skip(1) {
         let mut line_to_add: Vec<Option<&str>> = vec![];
-        for col in cols {
+        for col in line {
             if col.chars().all(|c| bad_chars.contains(&c)) {
                 line_to_add.push(None);
             } else {
@@ -112,7 +116,9 @@ pub fn parse_servo(servo: &str) -> Result<Vec<ControlTableData>> {
         }
 
         if !line_to_add.iter().all(|o| o.is_none()) {
-            if let Some(captures) = indirect_re.captures(line) {
+            if let Some(captures) =
+                INDERECT_RE.captures(&line.clone().into_iter().collect::<String>())
+            {
                 let current_match = captures.get(captures.len() - 1).unwrap().as_str();
                 if !current_match.chars().all(char::is_numeric) {
                     continue;
@@ -133,9 +139,8 @@ pub fn parse_servo(servo: &str) -> Result<Vec<ControlTableData>> {
         }
     }
 
-    let headings: Vec<&str> = servo.lines().next().unwrap().split(", ").collect();
     let mut indexes: HashMap<&str, usize> = HashMap::new();
-    for (idx, heading) in headings.iter().enumerate() {
+    for (idx, heading) in servo[0].iter().enumerate() {
         indexes.insert(heading, idx);
     }
 
