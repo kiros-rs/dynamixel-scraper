@@ -51,13 +51,15 @@ pub enum RangeValue {
 
 impl RangeValue {
     pub fn new(text: &str) -> Result<RangeValue> {
-        // Regex to capture the address-based range values (eg "AccelerationLimit40")
-        let address_re = Regex::new(r"^-?([a-zA-Z]+)[0-9]*$")?;
-        // Regex to capture the integer-based range values (eg 0)
-        let integer_re = Regex::new(r"^-?[0-9]+$")?;
+        lazy_static! {
+            // Regex to capture the address-based range values (eg "AccelerationLimit40")
+            static ref ADDRESS_RE: Regex = Regex::new(r"^-?([a-zA-Z]+)[0-9]*$").unwrap();
+            // Regex to capture the integer-based range values (eg 0)
+            static ref INTEGER_RE: Regex = Regex::new(r"^-?[0-9]+$").unwrap();
+        }
 
-        let address_matches = address_re.captures(text);
-        let integer_matches = integer_re.captures(text);
+        let address_matches = ADDRESS_RE.captures(text);
+        let integer_matches = INTEGER_RE.captures(text);
 
         // Make sure only one regex matches
         assert!(address_matches.is_none() || integer_matches.is_none());
@@ -81,8 +83,8 @@ impl RangeValue {
                 });
             }
         } else if let Some(captures) = integer_matches {
-                let num = captures.get(0).unwrap().as_str();
-                return Ok(RangeValue::Integer(num.parse::<i32>()?));
+            let num = captures.get(0).unwrap().as_str();
+            return Ok(RangeValue::Integer(num.parse::<i32>()?));
         };
 
         panic!("This should definitely not be possible");

@@ -4,6 +4,9 @@ pub mod analysis;
 pub mod download;
 pub mod serialize;
 
+#[macro_use]
+extern crate lazy_static;
+
 use anyhow::Result;
 use clap::{App, Arg, ArgGroup};
 use download::merge_tables;
@@ -90,6 +93,7 @@ async fn main() -> Result<()> {
                             .takes_value(false)
                             .help("If the control table should be output in RON"))
                         .group(ArgGroup::with_name("format")
+                            .multiple(true)
                             .args(&["lib", "ron"]))
                         .arg(Arg::with_name("dynamixel")
                             .short("d")
@@ -194,7 +198,7 @@ async fn main() -> Result<()> {
                 let req = reqwest::get(&dxl.url).await.unwrap();
                 let text = req.text().await.unwrap();
                 let actuator = Actuator::new(dxl.url, dxl.name, text).unwrap();
-                spinner.finish();
+                spinner.finish_and_clear();
 
                 actuator
             })

@@ -4,8 +4,12 @@ use scraper::{ElementRef, Html, Selector};
 
 fn parse_table(table: ElementRef) -> Result<String> {
     let mut csv = String::new();
-    let sel = Selector::parse("tr>*").unwrap();
-    let elements = table.select(&sel);
+
+    lazy_static! {
+        static ref ROW_SELECTOR: Selector = Selector::parse("tr>*").unwrap();
+    };
+
+    let elements = table.select(&ROW_SELECTOR);
 
     let (headings, body): (Vec<ElementRef>, Vec<ElementRef>) =
         elements.partition(|x| x.value().name() == "th");
@@ -56,9 +60,11 @@ fn parse_table(table: ElementRef) -> Result<String> {
 pub fn merge_tables(page: &str, indexes: (usize, usize)) -> Result<String> {
     let document = Html::parse_document(page);
 
-    let table_selector = Selector::parse("table").unwrap();
-    let eeprom_table = document.select(&table_selector).nth(indexes.0).unwrap();
-    let ram_table = document.select(&table_selector).nth(indexes.1).unwrap();
+    lazy_static! {
+        static ref TABLE_SELECTOR: Selector = Selector::parse("table").unwrap();
+    }
+    let eeprom_table = document.select(&TABLE_SELECTOR).nth(indexes.0).unwrap();
+    let ram_table = document.select(&TABLE_SELECTOR).nth(indexes.1).unwrap();
 
     let mut eeprom = parse_table(eeprom_table)?;
     let ram = parse_table(ram_table)?;

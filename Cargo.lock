@@ -198,6 +198,7 @@ dependencies = [
  "convert_case",
  "futures-util",
  "indicatif",
+ "lazy_static",
  "regex",
  "reqwest",
  "ron",
